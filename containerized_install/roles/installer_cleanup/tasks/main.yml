@@ -7,3 +7,4 @@
     - "/etc/sudoers.d/{{ containerized_installer_user }}"
     - "{{ containerized_installer_user_home }}/aap_installer.tar.gz"
     - "{{ containerized_installer_user_home }}/manifest.zip"
+    - "{{ containerized_installer_user_home }}/extra_vars.yml"

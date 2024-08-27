@@ -80,10 +80,18 @@
     group: "{{ containerized_installer_user }}"
     mode: "0600"
 
+- name: Copy agof vault to installer system
+  ansible.builtin.copy:
+    src: ~/agof_vault.yml
+    dest: "{{ aap_installer_dir }}/agof_vault.yml"
+    owner: "{{ containerized_installer_user }}"
+    group: "{{ containerized_installer_user }}"
+    mode: "0600"
+
 - name: Run installer
   ansible.builtin.command:
     chdir: "{{ aap_installer_dir }}"
     cmd: |-
-      ansible-playbook -i inventory ansible.containerized_installer.install
+      ansible-playbook -i inventory ansible.containerized_installer.install -e @agof_vault.yml
   async: 3600
   poll: 15

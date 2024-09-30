@@ -7,6 +7,10 @@
       - git
       - rsync
       - sudo
+  register: pkg_install
+  until: pkg_install is success
+  retries: 20
+  delay: 30
 
 - name: "Manage user for AAP installer"
   ansible.builtin.user:

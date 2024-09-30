@@ -21,6 +21,12 @@
 {{ controller_fqdn }} ansible_connection=local
 {% endif %}
 
+{% if aap_version == '2.5' %}
+[automationgateway]
+{{ controller_fqdn }} ansible_connection=local
+{% endif %}
+
+
 # This section is for your AAP Execution host(s)
 # ------------------------------------------------
 #[execution_nodes]
@@ -38,6 +44,14 @@
 {% if eda and (aap_version == '2.4') and (ci_24_eda_workaround | default(True)) %}
 eda_image = eda-controller-rhel8:1.0.5
 eda_web_image = eda-controller-ui-rhel8:1.0.5
+{% endif %}
+
+{% if aap_version == '2.5' %}
+redis_mode=standalone
+
+gateway_admin_password={{ gateway_admin_password }}
+gateway_pg_host={{ controller_fqdn }}
+gateway_pg_password={{ gateway_pg_password }}
 {% endif %}
 
 # Common variables needed for installation

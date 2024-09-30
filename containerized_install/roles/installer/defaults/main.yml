@@ -1,5 +1,5 @@
 ---
-aap_version: "2.4"
+aap_version: "2.5"
 
 automation_hub: true
 eda: true
@@ -45,6 +45,9 @@ eda_admin_password: "{{ admin_password }}"
 eda_pg_password: "{{ db_password }}"
 eda_workers: 2
 eda_activation_workers: 2
+
+gateway_admin_password: "{{ admin_password }}"
+gateway_pg_password: "{{ db_password }}"
 
 # controller_license_src_file:
 # admin_password:

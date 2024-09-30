@@ -3,6 +3,10 @@ containerized_install: true
 containerized_installer_user: 'aap'
 containerized_installer_user_home: '/var/lib/{{ containerized_installer_user }}'
 
-containerized_installer_shasum: '714de904596f2f3312b8804eee0d2fdce6842ac2108dbf718f2107ef61d1598d'
+# 2.4 containerized
+#containerized_installer_shasum: '714de904596f2f3312b8804eee0d2fdce6842ac2108dbf718f2107ef61d1598d'
+# 2.5 containerized bundle
+#containerized_installer_shasum: 'a64a0bc03c7e1aca8d726524398a8d328dfdb0b86135029f2cb45b59a3ce34b5'
+containerized_installer_shasum: '99eedbbbca7a9d6308f5af908db3bde11d8a6e49034fdb1a88bc18a58ad86e99'
 
 containerized_installer_cleanup: true

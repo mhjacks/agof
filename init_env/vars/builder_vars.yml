@@ -35,11 +35,11 @@ imagebuilder_include_filesystem: false
 
 # you can use the API url to pull a current list of available distributions
 # they must match what is supported for Satellite and Identity Management. RHEL 8.7 works for both.
-builder_distribution: "rhel-8"
+builder_distribution: "rhel-9"
 
 # what we will call the image and where we put it
 image_file_directory: "/tmp"
-builder_image_name: "builder_main"
+builder_image_name: "agof_builder"
 image_extension: "vmdk"
 image_file_name: "{{ builder_image_name }}.{{ image_extension }}"
 image_file_path: "{{ image_file_directory }}/{{ image_file_name }}"

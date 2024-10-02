@@ -18,3 +18,4 @@ collections:
 - redhat.satellite
 - redhat.satellite_operations
 - redhat.redhat_csp_download
+- git+https://github.com/redhat-cop/infra.platform_configuration.git

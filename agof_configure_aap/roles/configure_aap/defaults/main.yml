@@ -6,7 +6,11 @@ automation_hub: false
 pattern_name: '{{ ec2_name_prefix }}'
 
 controller_hostname: 'aap.{{ pattern_name }}.{{ pattern_dns_zone }}'
-controller_port: 443
+gateway_hostname: "{{ controller_hostname }}"
+controller_port: 8443
+gateway_port: 443
+hub_port: 8444
+eda_port: 8445
 
 controller_state: present
 

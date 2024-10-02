@@ -14,7 +14,7 @@
 
     - name: "Set controller port for containerized_install"
       ansible.builtin.set_fact:
-        controller_port: 8443
+        controller_port: 443
       when: containerized_install | bool
 
 - name: "Phase 1 - initialize the environment"

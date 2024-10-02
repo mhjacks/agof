@@ -94,6 +94,15 @@
   ansible.builtin.set_fact:
     controller_hostname: "https://{{ controller_hostname }}:{{ controller_port }}"
 
+- name: Set gateway vars
+  ansible.builtin.set_fact:
+      gateway_state: "{{ controller_state }}"
+      gateway_hostname: "{{ controller_hostname }}"
+      gateway_validate_certs: "{{ controller_validate_certs }}"
+      gateway_username: "{{ controller_username }}"
+      gateway_request_timeout: "{{ controller_request_timeout }}"
+      gateway_configuration_async_dir: "{{ controller_configuration_async_dir }}"
+
 - name: Debug infra.controller_configuration.dispatch common variables
   ansible.builtin.debug:
     msg:
@@ -104,8 +113,21 @@
       - "controller_username: {{ controller_username }}"
       - "controller_request_timeout: {{ controller_request_timeout }}"
       - "controller_configuration_async_dir: {{ controller_configuration_async_dir }}"
+      - "gateway_state: {{ gateway_state }}"
+      - "gateway_hostname: {{ gateway_hostname }}"
+      - "gateway_port: {{ gateway_port }}"
+      - "gateway_validate_certs: {{ gateway_validate_certs }}"
+      - "gateway_username: {{ gateway_username }}"
+      - "gateway_request_timeout: {{ gateway_request_timeout }}"
+      - "gateway_configuration_async_dir: {{ gateway_configuration_async_dir }}"
   when:
     - agof_configure_aap_debug
+
+- name: "Configure AAP Platform/Gateway"
+  ansible.builtin.include_role:
+    name: infra.platform_configuration.organizations
+  vars:
+    gateway_organizations: '{{ organizations }}'
 
 - name: "Configure AAP Controller"
   ansible.builtin.include_role:

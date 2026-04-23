@@ -327,6 +327,8 @@ Since the OpenShift Validated Patterns experience uses HashiCorp Vault as a secr
 
 Additionally, AGOF expects an agof_vault.yml file for any other secret material, which will be included in OpenShift as well. This means that you do not have to use the Vault integration if you would rather not.
 
+When the aap-config Helm values include `aapManifest` (see [mhjacks/aap-config-chart](https://github.com/mhjacks/aap-config-chart) branch `optionalize_secrets`), `pre_init/openshift_vp_preinit.yml` reads the subscription manifest from the **same path the chart mounts** when `aapManifest.source` is `sscsi` (Secrets Store CSI) or `externalSecret` (native Secret volume). If the mount is not available or `aapManifest` is absent, it falls back to the existing `Secret` `aap-config/aap-manifest` API path.
+
 Because the AGOF runner needs predicatability for the existence of the manifest file and the IAC repo and revision, it overrides these specific elements from vault with its own override file, which is created as `~/agof_overrides.yml`. This file is included as the last extra_vars file on the playbook command line. It specifically sets these variables:
 
 * `aap_entitled`: Based on examing the AAP endpoint, whether the instance has been entitled or not
@@ -335,7 +337,7 @@ Because the AGOF runner needs predicatability for the existence of the manifest 
 * `aap_hostname`: The endpoint of the AAP instance, as discovered by looking for its route in the ansible-automation-platform namespace
 * `agof_iac_repo`: Set by retrieving it from the helm values, so that it overries what may be in your local `agof_vault.yml` file.
 * `agof_iac_repo_version`: Set by retrieving it from the Helm chart, as above.
-* `controller_license_src_file`: Set by creating a temporary file from the manifest file secret
+* `controller_license_src_file`: Set by creating a temporary file from the mounted manifest or the manifest Secret
 * `secrets`: Special data structure that contains other elements discovered from OpenShift.
 * `helm_values`: All of the helm values available to the application.
 

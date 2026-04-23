@@ -45,35 +45,132 @@
       ansible.builtin.set_fact:
         automation_hub_token_vault: "{{ automation_hub_token_secret.resources[0].data.token | b64decode | trim }}"
 
-    - name: Retrieve manifest file
-      kubernetes.core.k8s_info:
-        kind: Secret
-        namespace: aap-config
-        name: aap-manifest
-      register: manifest_secret
-      until: manifest_secret.resources | length == 1
-      retries: 20
-      delay: 5
-
-    - name: Set manifest fact
+    # Aligns with mhjacks/aap-config-chart optionalize_secrets: aapManifest.source is sscsi (Secrets Store CSI)
+    # or externalSecret (native Secret volume). The manifest is always mounted read-only under mountPath.
+    - name: Capture aapManifest stanza from helm values
       ansible.builtin.set_fact:
-        manifest_file: "{{ manifest_secret.resources[0].data.b64content | b64decode | b64decode }}"
+        aap_manifest_cfg: "{{ helm_cm_values.aapManifest | default({}, true) }}"
 
-    - name: Write temp manifest file
-      ansible.builtin.tempfile:
-        state: file
-        suffix: .zip
-      register: manifest_file_tmp
-
-    - name: Set manifest_file_ref fact
+    - name: Resolve aap-manifest delivery mode from chart
       ansible.builtin.set_fact:
-        manifest_file_ref: "{{ manifest_file_tmp.path }}"
+        aap_manifest_source: "{{ aap_manifest_cfg.source | default('', true) | trim }}"
 
-    - name: Copy manifest contents to tmpfile
-      ansible.builtin.copy:
-        content: "{{ manifest_file }}"
-        dest: "{{ manifest_file_ref }}"
-        mode: "0644"
+    - name: Resolve manifest mount directory on the config job pod
+      ansible.builtin.set_fact:
+        aap_manifest_mount_dir: >-
+          {{
+            (
+              (aap_manifest_cfg.sscsi | default({}, true)).mountPath
+              | default('/pattern-home/aap-manifest', true)
+            )
+            if aap_manifest_source == 'sscsi'
+            else (
+              (aap_manifest_cfg.externalSecret | default({}, true)).mountPath
+              | default('/pattern-home/aap-manifest', true)
+              if aap_manifest_source == 'externalSecret'
+              else ''
+            )
+          }}
+
+    - name: Initialize manifest-from-mount tracking
+      ansible.builtin.set_fact:
+        agof_manifest_from_mount: false
+        aap_manifest_fs_path: ""
+
+    - name: Resolve manifest file path from CSI or Secret volume mount
+      when:
+        - aap_manifest_source in ['sscsi', 'externalSecret']
+        - aap_manifest_mount_dir | length > 0
+      block:
+        - name: Stat chart manifest mount path
+          ansible.builtin.stat:
+            path: "{{ aap_manifest_mount_dir | trim | expanduser }}"
+          register: aap_manifest_mount_stat
+
+        - name: Use mount path when it is a single file
+          ansible.builtin.set_fact:
+            aap_manifest_fs_path: "{{ aap_manifest_mount_stat.stat.path }}"
+          when: aap_manifest_mount_stat.stat.exists | default(false) and aap_manifest_mount_stat.stat.isreg | default(false)
+
+        - name: List files when mount path is a directory
+          ansible.builtin.find:
+            paths: "{{ aap_manifest_mount_stat.stat.path }}"
+            file_type: file
+            depth: 1
+          register: aap_manifest_find
+          when: aap_manifest_mount_stat.stat.exists | default(false) and aap_manifest_mount_stat.stat.isdir | default(false)
+
+        - name: Prefer mounted file named b64content (legacy Secret key filename)
+          ansible.builtin.set_fact:
+            aap_manifest_fs_path: "{{ candidate_b64 }}"
+          vars:
+            paths: "{{ aap_manifest_find.files | default([]) | map(attribute='path') | list }}"
+            candidate_b64: "{{ paths | select('search', 'b64content') | list | first | default('', true) }}"
+          when:
+            - aap_manifest_find is defined
+            - aap_manifest_find.matched | default(0) > 0
+            - candidate_b64 | length > 0
+
+        - name: Otherwise use first file under mount directory
+          ansible.builtin.set_fact:
+            aap_manifest_fs_path: "{{ (aap_manifest_find.files | sort(attribute='path') | first).path }}"
+          when:
+            - aap_manifest_find is defined
+            - aap_manifest_find.matched | default(0) > 0
+            - aap_manifest_fs_path | default('') | length == 0
+
+        - name: Copy mounted manifest into a writable temp file for overrides
+          when: aap_manifest_fs_path | default('') | length > 0
+          block:
+            - name: Create temp file for mounted manifest
+              ansible.builtin.tempfile:
+                state: file
+                suffix: .zip
+              register: manifest_file_tmp_mount
+
+            - name: Copy manifest bytes from mount into temp file
+              ansible.builtin.copy:
+                src: "{{ aap_manifest_fs_path }}"
+                dest: "{{ manifest_file_tmp_mount.path }}"
+                mode: "0644"
+
+            - name: Record manifest path from volume mount
+              ansible.builtin.set_fact:
+                manifest_file_ref: "{{ manifest_file_tmp_mount.path }}"
+                agof_manifest_from_mount: true
+
+    - name: Load manifest from Kubernetes Secret when not supplied via volume mount
+      when: not (agof_manifest_from_mount | default(false) | bool)
+      block:
+        - name: Retrieve manifest file
+          kubernetes.core.k8s_info:
+            kind: Secret
+            namespace: aap-config
+            name: aap-manifest
+          register: manifest_secret
+          until: manifest_secret.resources | length == 1
+          retries: 20
+          delay: 5
+
+        - name: Set manifest fact
+          ansible.builtin.set_fact:
+            manifest_file: "{{ manifest_secret.resources[0].data.b64content | b64decode | b64decode }}"
+
+        - name: Write temp manifest file
+          ansible.builtin.tempfile:
+            state: file
+            suffix: .zip
+          register: manifest_file_tmp
+
+        - name: Set manifest_file_ref fact
+          ansible.builtin.set_fact:
+            manifest_file_ref: "{{ manifest_file_tmp.path }}"
+
+        - name: Copy manifest contents to tmpfile
+          ansible.builtin.copy:
+            content: "{{ manifest_file }}"
+            dest: "{{ manifest_file_ref }}"
+            mode: "0644"
 
     - name: Parse out vault configmap data
       kubernetes.core.k8s_info:

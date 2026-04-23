@@ -97,7 +97,7 @@
 #      ansible.builtin.set_fact:
 #        vault_data: "{{ vault_secret.resources[0].data.vault_data_json | b64decode | from_json }}"
 #
-     - name: Set secrets for use in load AAP playbook
+    - name: Set secrets for use in load AAP playbook
       ansible.builtin.set_fact:
         secrets:
           manifest_file_ref: "{{ manifest_file_ref }}"

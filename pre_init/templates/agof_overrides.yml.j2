@@ -18,7 +18,11 @@ agof_iac_repo_version: "{{ agof_iac_repo_version }}"
 automation_hub_token_vault: "{{ automation_hub_token_vault }}"
 
 controller_license_src_file: "{{ manifest_file_ref }}"
+{% if manifest_content is defined %}
+manifest_content: {{ manifest_content | to_json }}
+{% else %}
 manifest_content: "{{ lookup('file', manifest_file_ref) | b64encode }}"
+{% endif %}
 
 secrets: {{ secrets | to_json }}
 

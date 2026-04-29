@@ -107,9 +107,17 @@
             status_code: [200]
           register: vault_manifest_resp
 
-        - name: Set manifest fact from Vault response
+        # Vault KV stores the subscription zip as one base64 string (field b64content). Unlike
+        # Kubernetes Secret.data, there is no extra API-layer base64 — do not double-decode.
+        - name: Set manifest zip bytes for temp file (Vault CSI path)
           ansible.builtin.set_fact:
-            manifest_file: "{{ vault_manifest_resp.json.data.data.b64content | b64decode | b64decode }}"
+            manifest_file: "{{ vault_manifest_resp.json.data.data.b64content | b64decode }}"
+
+        # Controller API expects the same base64 string; use Vault value directly to avoid
+        # lookup('file') on binary zip (UTF-8 mangles) in agof_overrides.yml.j2.
+        - name: Set manifest_content for AAP config POST (Vault CSI path)
+          ansible.builtin.set_fact:
+            manifest_content: "{{ vault_manifest_resp.json.data.data.b64content }}"
 
     - name: Retrieve manifest file from External Secrets (non-CSI)
       when: not (aap_manifest_csi_enabled | bool)

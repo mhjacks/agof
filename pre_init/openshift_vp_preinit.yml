@@ -31,6 +31,10 @@
         do_auto_hub_vault_config: "{{ helm_values.agof.doAutoHubVaultConfig }}"
       when: helm_values.agof.doAutoHubVaultConfig is defined
 
+    - name: Detect AAP manifest delivered via Vault CSI (no aap-manifest Secret)
+      ansible.builtin.set_fact:
+        aap_manifest_csi_enabled: "{{ (helm_values.aapManifest.csi.enabled | default(false)) | bool }}"
+
     - name: Show agof iac repo details
       ansible.builtin.debug:
         msg:
@@ -51,38 +55,18 @@
       ansible.builtin.set_fact:
         automation_hub_token_vault: "{{ automation_hub_token_secret.resources[0].data.token | b64decode | trim }}"
 
-    - name: Retrieve manifest file
-      kubernetes.core.k8s_info:
-        kind: Secret
-        namespace: aap-config
-        name: aap-manifest
-      register: manifest_secret
-      until: manifest_secret.resources | length == 1
-      retries: 20
-      delay: 5
+    - name: Require Hub Vault automation when AAP manifest uses CSI only
+      ansible.builtin.fail:
+        msg: >-
+          aapManifest.csi.enabled is true but agof.doAutoHubVaultConfig is false. openshift_vp_preinit
+          reads the manifest from Vault KV (no Kubernetes Secret aap-manifest). Enable doAutoHubVaultConfig
+          or disable aapManifest.csi in the aap-config chart values.
+      when:
+        - aap_manifest_csi_enabled | bool
+        - not (do_auto_hub_vault_config | bool)
 
-    - name: Set manifest fact
-      ansible.builtin.set_fact:
-        manifest_file: "{{ manifest_secret.resources[0].data.b64content | b64decode | b64decode }}"
-
-    - name: Write temp manifest file
-      ansible.builtin.tempfile:
-        state: file
-        suffix: .zip
-      register: manifest_file_tmp
-
-    - name: Set manifest_file_ref fact
-      ansible.builtin.set_fact:
-        manifest_file_ref: "{{ manifest_file_tmp.path }}"
-
-    - name: Copy manifest contents to tmpfile
-      ansible.builtin.copy:
-        content: "{{ manifest_file }}"
-        dest: "{{ manifest_file_ref }}"
-        mode: "0644"
-
-    - name: Do local Vault Hub Secret Extraction magic
-      when: do_auto_hub_vault_config
+    - name: Fetch Vault credentials for CSI manifest and/or hub Vault config
+      when: (aap_manifest_csi_enabled | bool) or (do_auto_hub_vault_config | bool)
       block:
         - name: Parse out vault configmap data
           kubernetes.core.k8s_info:
@@ -106,19 +90,73 @@
           ansible.builtin.set_fact:
             vault_data: "{{ vault_secret.resources[0].data.vault_data_json | b64decode | from_json }}"
 
-        - name: Set Vault-enriched secrets for use in load AAP playbook
+    - name: Retrieve AAP manifest from Vault KV (CSI mode; no aap-manifest Secret)
+      when: aap_manifest_csi_enabled | bool
+      block:
+        - name: Read manifest path from helm values
           ansible.builtin.set_fact:
-            secrets:
-              manifest_file_ref: "{{ manifest_file_ref }}"
-              vault_ca: "{{ vault_ca }}"
-              vault_root_token: "{{ vault_data.root_token  }}"
-              vault_url: https://vault.vault.svc:8200
+            _aap_manifest_vault_path: "{{ helm_values.aapManifest.key | default('secret/data/hub/aap-manifest') }}"
+
+        - name: GET manifest from Vault (KV v2)
+          ansible.builtin.uri:
+            url: "https://vault.vault.svc:8200/v1/{{ _aap_manifest_vault_path }}"
+            method: GET
+            headers:
+              X-Vault-Token: "{{ vault_data.root_token }}"
+            validate_certs: false
+            status_code: [200]
+          register: vault_manifest_resp
+
+        - name: Set manifest fact from Vault response
+          ansible.builtin.set_fact:
+            manifest_file: "{{ vault_manifest_resp.json.data.data.b64content | b64decode | b64decode }}"
+
+    - name: Retrieve manifest file from External Secrets (non-CSI)
+      when: not (aap_manifest_csi_enabled | bool)
+      kubernetes.core.k8s_info:
+        kind: Secret
+        namespace: aap-config
+        name: aap-manifest
+      register: manifest_secret
+      until: manifest_secret.resources | length == 1
+      retries: 20
+      delay: 5
+
+    - name: Set manifest fact from Kubernetes Secret
+      ansible.builtin.set_fact:
+        manifest_file: "{{ manifest_secret.resources[0].data.b64content | b64decode | b64decode }}"
+      when: not (aap_manifest_csi_enabled | bool)
+
+    - name: Write temp manifest file
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .zip
+      register: manifest_file_tmp
+
+    - name: Set manifest_file_ref fact
+      ansible.builtin.set_fact:
+        manifest_file_ref: "{{ manifest_file_tmp.path }}"
+
+    - name: Copy manifest contents to tmpfile
+      ansible.builtin.copy:
+        content: "{{ manifest_file }}"
+        dest: "{{ manifest_file_ref }}"
+        mode: "0644"
+
+    - name: Set Vault-enriched secrets for use in load AAP playbook
+      ansible.builtin.set_fact:
+        secrets:
+          manifest_file_ref: "{{ manifest_file_ref }}"
+          vault_ca: "{{ vault_ca }}"
+          vault_root_token: "{{ vault_data.root_token }}"
+          vault_url: https://vault.vault.svc:8200
+      when: do_auto_hub_vault_config | bool
 
     - name: Set secret for use in load AAP playbook
       ansible.builtin.set_fact:
         secrets:
           manifest_file_ref: "{{ manifest_file_ref }}"
-      when: do_auto_hub_vault_config is false
+      when: not (do_auto_hub_vault_config | bool)
 
 - name: Retrieve Credentials for AAP on OpenShift and write needed override files
   become: false

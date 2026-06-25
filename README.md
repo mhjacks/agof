@@ -386,7 +386,7 @@ These roles also include code for making hostnames durable across reboots, maint
 
 ##### [Update Route53 DNS (if needed)](init_env/aws/fix_aws_dns.yml)
 
-The standard public IPs that are offered by AWS (which are used by this framework) are not permanently associated with the VMs. When the VMs cold start, in particular, we can expect IP change events. The VMs themselves are not directly aware of their external IPs. In order to handle this situation, this play can be run from the provisioner node/workstation to update the route53 DNS mappings based on the AWS API.
+The standard public IPs that are offered by AWS (which are used by this framework) are not permanently associated with the VMs. When the VMs cold start, in particular, we can expect IP change events. The VMs themselves are not directly aware of their external IPs. In order to handle this situation, run `make fix_aws_dns` from the provisioner node/workstation to look up existing bootstrap instances in AWS and update the Route53 DNS mappings. This play does not provision EC2 instances or run RHEL bootstrap; it only refreshes inventory and DNS.
 
 ##### [Teardown AWS Environment](init_env/aws/teardown.yml) (`make aws_uninstall`)
 

@@ -28,8 +28,12 @@
   loop_control:
     label: "{{ item.public_dns_name }} fqdn: {{ inst.name }}.{{ pattern_domain }} groups: {{ [ 'aws_nodes' ] + (inst.ansible_extra_groups | default([])) }}"
 
-- name: Save facts for later
+- name: Save instance inventory for later
   ansible.builtin.set_fact:
     ec2_instances_built: '{{ (ec2_instances_built | default([])) + ([ instance_info.instances ] | flatten) }}'
+
+- name: Save infra facts for later
+  ansible.builtin.set_fact:
     subnet_id: '{{ ec2_vpc_subnet_id }}'
     sg_id: '{{ create_sg.group_id }}'
+  when: create_sg is defined

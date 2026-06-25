@@ -2,6 +2,7 @@
 teardown: false
 
 ec2_wait: true
+ec2_provision_instances: true
 ebs_optimized_capable: false
 
 ec2_instances:

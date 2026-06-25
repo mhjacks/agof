@@ -14,7 +14,9 @@
   loop: '{{ ec2_instances }}'
   loop_control:
     loop_var: inst
-  when: not teardown|bool
+  when:
+    - not teardown | bool
+    - ec2_provision_instances | default(true) | bool
 
 - name: Gather Inventory of built machines
   ansible.builtin.include_tasks: ensure_ec2_inventory.yml

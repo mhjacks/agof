@@ -1,5 +1,5 @@
 ---
-aws_account_nbr_vault: 'Your AWS account number - needed to share composer images with'
+aws_account_nbr_vault: 'Your AWS account number'
 aws_access_key_vault: 'Your AWS access key'
 aws_secret_key_vault: 'Your AWS secret key'
 
@@ -10,23 +10,24 @@ ec2_name_prefix: 'A unique prefix to distinguish instances in AWS. Used as the p
 ec2_region: 'An AWS region that your account has access to'
 
 # Generate it from https://access.redhat.com/management/api
-offline_token: 'A Red Hat offline token used to build the RHEL image on console.redhat.com'
+offline_token: 'A Red Hat offline token used to download the AAP containerized installer'
 
 redhat_username: 'Red Hat Subscription username, used to login to registry.redhat.io'
 redhat_password: 'Red Hat Subscription password, used to login to registry.redhat.io'
 
 admin_password: 'An admin password for AAP Controller and Automation Hub'
 
-# https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.6/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy
+# https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy
 manifest_content: "Content for a manifest file to entitle AAP Controller. See below for an example of how to point to a local file"
 #manifest_content: "{{ lookup('file', '~/Downloads/manifest_AVP_20230510T202608Z.zip') | b64encode }}"
 
 org_number_vault: "The Organization Number attached to your Red Hat Subscription for RHEL and AAP"
-activation_key_vault: "The name of an Activation Key to embed in the imagebuilder image"
+activation_key_vault: "The name of an Activation Key used to register RHEL instances at bootstrap time"
 
-# Set these variables to provide your own AMI, or to re-use an AMI previously generated with this process
-#skip_imagebuilder_build: 'boolean: skips imagebuilder build process'
-#imagebuilder_ami: 'The ID of an AWS AMI image, preferably one that was built with this toolkit'
+# Optional: pin a specific RHEL AMI instead of looking up the latest by rhel_version
+#rhel_ami_id_vault: 'ami-0123456789abcdef0'
+
+# Do not set ansible_remote_tmp here; the framework sets per-user paths on each host.
 
 automation_hub_token_vault: 'A token associated with your AAP subscription used to retrieve Automation Hub content'
 

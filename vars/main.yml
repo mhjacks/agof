@@ -7,4 +7,8 @@ containerized_install: true
 containerized_installer_user: 'aap'
 containerized_installer_user_home: '/home/aap'
 
+agof_bootstrap_target: 'aws'
+bootstrap_allowable_values:
+  - aws
+
 init_env_collection_install_force: false

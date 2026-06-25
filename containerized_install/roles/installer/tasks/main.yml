@@ -70,6 +70,32 @@
         group: "{{ containerized_installer_user }}"
         mode: "0600"
 
+    - name: Prepare connection paths for async containerized installer
+      block:
+        - name: Refresh connection settings for AAP installer user
+          ansible.builtin.add_host:
+            name: "{{ inventory_hostname }}"
+            ansible_user: "{{ containerized_installer_user }}"
+            ansible_remote_tmp: "{{ containerized_installer_user_home }}/.ansible/tmp"
+
+        - name: Remove stale shared ansible tmp from bootstrap user
+          ansible.builtin.file:
+            path: /tmp/.ansible
+            state: absent
+          become: true
+
+        - name: Ensure AAP user ansible directories exist
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: directory
+            mode: "0700"
+          loop:
+            - "{{ containerized_installer_user_home }}/.ansible/tmp"
+            - "{{ containerized_installer_user_home }}/.ansible/.async"
+
+        - name: Reset SSH connection before async containerized installer
+          ansible.builtin.meta: reset_connection
+
     - name: Run containerized installer
       ansible.builtin.command:
         chdir: "{{ aap_installer_dir }}"
@@ -77,3 +103,5 @@
           ansible-playbook -i inventory ansible.containerized_installer.install
       async: 3600
       poll: 15
+      vars:
+        ansible_remote_tmp: "{{ containerized_installer_user_home }}/.ansible/tmp"

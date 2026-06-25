@@ -4,28 +4,24 @@
   become: false
   gather_facts: false
   vars_files:
-    - "./vars/builder_vars.yml"
+    - "./vars/bootstrap_vars.yml"
+    - "../vars/main.yml"
     - "~/agof_vault.yml"
   tasks:
     - name: "Assert that we have a valid target platform"
       ansible.builtin.assert:
         that:
-          - agof_bootstrap_target | length > 0
-          - agof_bootstrap_target in bootstrap_allowable_values
-        fail_msg: "{{ agof_bootstrap_target }} is not a supported bootstrap target"
-        success_msg: "Assertion passed: bootstrapping on {{ agof_bootstrap_target }}"
+          - (agof_bootstrap_target | default('aws')) | length > 0
+          - (agof_bootstrap_target | default('aws')) in bootstrap_allowable_values
+        fail_msg: "{{ agof_bootstrap_target | default('aws') }} is not a supported bootstrap target"
+        success_msg: "Assertion passed: bootstrapping on {{ agof_bootstrap_target | default('aws') }}"
 
     - name: "Set our target bootstrap platform"
       ansible.builtin.set_fact:
-        bootstrap_target: "{{ agof_bootstrap_target }}"
-
-- name: "Build the image"
-  ansible.builtin.import_playbook: "./buildimage/main.yml"
-  tags:
-    - tags_buildimage
+        bootstrap_target: "{{ agof_bootstrap_target | default('aws') }}"
 
 - name: "Initialize the environment on aws"
   ansible.builtin.import_playbook: "./aws/main.yml"
   tags:
     - tags_aws_init_env
-  when: agof_bootstrap_target == "aws"
+  when: (agof_bootstrap_target | default('aws')) == 'aws'

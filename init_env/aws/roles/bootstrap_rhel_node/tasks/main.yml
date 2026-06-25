@@ -1,34 +1,39 @@
 ---
-- name: "Install prereq packages"
+- name: Register with Red Hat Subscription Manager
+  community.general.redhat_subscription:
+    state: present
+    activationkey: "{{ activation_key }}"
+    org_id: "{{ org_number }}"
+
+- name: Install bootstrap packages
   ansible.builtin.package:
-    name:
-      - acl
-      - ansible-core
-      - wget
-      - git
-      - rsync
-      - sudo
+    name: "{{ bootstrap_packages }}"
+    state: present
 
-- name: "Manage user for AAP installer"
+- name: Manage user for AAP installer
   ansible.builtin.user:
-    name: '{{ containerized_installer_user }}'
-    comment: 'AAP User'
+    name: "{{ containerized_installer_user }}"
+    comment: "AAP User"
     create_home: true
-    home: '{{ containerized_installer_user_home }}'
+    home: "{{ containerized_installer_user_home }}"
 
-- name: "Enable sudo for AAP installer user"
+- name: Enable passwordless sudo for AAP installer user
   ansible.builtin.lineinfile:
     path: "/etc/sudoers.d/{{ containerized_installer_user }}"
     line: "{{ containerized_installer_user }} ALL=(ALL) NOPASSWD: ALL"
     owner: root
     group: root
-    mode: '0444'
+    mode: "0444"
     create: true
 
-- name: "Enable sudo for AAP installer user"
+- name: Set XDG_RUNTIME_DIR for AAP installer user
   ansible.builtin.lineinfile:
     path: "{{ containerized_installer_user_home }}/.bashrc"
-    line: 'export XDG_RUNTIME_DIR=/run/user/$EUID'
+    line: "export XDG_RUNTIME_DIR=/run/user/$EUID"
+    create: true
+    owner: "{{ containerized_installer_user }}"
+    group: "{{ containerized_installer_user }}"
+    mode: "0644"
 
 - name: Ensure .ssh directory for AAP installer user
   ansible.builtin.file:
@@ -46,10 +51,6 @@
     owner: "{{ containerized_installer_user }}"
     group: "{{ containerized_installer_user }}"
     mode: "0600"
-
-- name: "Enable linger for AAP installer user"
-  ansible.builtin.command: |-
-    loginctl enable-linger "{{ containerized_installer_user }}"
 
 - name: Ensure ansible remote tmp for AAP installer user
   ansible.builtin.file:

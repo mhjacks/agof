@@ -4,12 +4,6 @@ library/
 images/
 *.private
 *_vault.yml
-init_env/buildimage/request-base-image.json
-init_env/buildimage/builder_main.vmdk
-init_env/buildimage/vars/idm_metadata.yml
-init_env/buildimage/vars/idm_userdata.yml
-init_env/buildimage/vars/sat_metadata.yml
-init_env/buildimage/vars/sat_userdata.yml
 ansible.cfg
 manifest.zip
 .ansible/

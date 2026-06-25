@@ -1,17 +1,8 @@
 ---
 agof_bootstrap_target: 'aws'
-imagebuilder_image_type: 'aws'
-aws_remote_tmp: '/tmp/.ansible'
 
 pattern_domain: "{{ ec2_name_prefix }}.{{ pattern_dns_zone }}"
 pattern_state_rootdir: "{{ '~' | expanduser }}"
-
-ami_source_region: 'us-east-1'
-
-build_aap_from_image: true
-
-imagebuilder_include_filesystem: false
-skip_imagebuilder_build: false
 
 manage_public_dns: true
 

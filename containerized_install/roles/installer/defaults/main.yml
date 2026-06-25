@@ -7,7 +7,7 @@ containerized_installer_user_home: '/home/{{ containerized_installer_user }}'
 
 containerized_installer_cleanup: true
 
-containerized_installer_version: "2.6"
+containerized_installer_version: "2.7"
 containerized_installer_dest_dir: "{{ containerized_installer_user_home }}"
 
 controller_fqdn: "{{ ansible_facts.fqdn }}"
@@ -15,6 +15,8 @@ controller_admin_password: "{{ admin_password }}"
 
 postgresql_admin_username: 'postgres'
 postgresql_admin_password: "{{ db_password }}"
+controller_pg_password: "{{ db_password }}"
+controller_percent_memory_capacity: 0.5
 
 controller_postinstall: false
 controller_postinstall_dir: ''
@@ -24,10 +26,11 @@ controller_postinstall_repo_ref: 'main'
 ee_extra_images: []
 de_extra_images: []
 
-controller_license_file: "{{ containerized_installer_user_home}}/manifest.zip"
+controller_license_file: "{{ containerized_installer_user_home }}/manifest.zip"
 
 hub_admin_password: "{{ admin_password }}"
 hub_pg_password: "{{ db_password }}"
+hub_seed_collections: false
 hub_workers: 2
 registry_username: "{{ redhat_username }}"
 registry_password: "{{ redhat_password }}"
@@ -50,6 +53,11 @@ eda_activation_workers: 2
 
 gateway_admin_password: "{{ admin_password }}"
 gateway_pg_password: "{{ db_password }}"
+
+automationmetrics_pg_host: "{{ controller_fqdn }}"
+automationmetrics_pg_password: "{{ db_password }}"
+automationmetrics_controller_read_pg_host: "{{ controller_fqdn }}"
+automationmetrics_controller_read_pg_password: "{{ db_password }}"
 
 force_aap_reconfigure: false
 # These would be the defaults but we don't defined pattern_name to use the real FQDN

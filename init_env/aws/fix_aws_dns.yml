@@ -7,6 +7,7 @@
   become: false
   vars_files:
     - 'vars/aws_vars.yml'
+    - '../vars/bootstrap_vars.yml'
     - '~/agof_vault.yml'
   tasks:
     - name: "AWS inventory and DHCP option setting"
@@ -33,10 +34,38 @@
               ansible.builtin.include_vars:
                 file: '{{ pattern_state_rootdir }}/{{ ec2_name_prefix }}/aws_state_vars.yml'
 
-            - name: Set ami_id
+            - name: Set ami_id from saved state
               ansible.builtin.set_fact:
-                ami_id: imagebuilder_ami
+                ami_id: "{{ rhel_ami_id }}"
+
+        - name: Resolve RHEL AMI ID when not loaded from state
+          when: ami_id is not defined or ami_id | length == 0
+          block:
+            - name: Look up latest RHEL AMI in target region
+              amazon.aws.ec2_ami_info:
+                owners:
+                  - "{{ rhel_ami_owner }}"
+                filters:
+                  name: "{{ rhel_ami_name_filter }}"
+                  architecture: x86_64
+                  state: available
+                region: "{{ ec2_region }}"
+              register: rhel_amis
+
+            - name: Assert matching RHEL AMIs were found
+              ansible.builtin.assert:
+                that:
+                  - rhel_amis.images | length > 0
+                fail_msg: >-
+                  No RHEL AMI found in {{ ec2_region }} matching {{ rhel_ami_name_filter }}
+                  (owner {{ rhel_ami_owner }}). Try a different rhel_version or set rhel_ami_id_vault.
+
+            - name: Set RHEL AMI ID from lookup
+              ansible.builtin.set_fact:
+                ami_id: "{{ (rhel_amis.images | sort(attribute='creation_date') | last).image_id }}"
 
         - name: Include setup code for VMs and DNS
           ansible.builtin.include_role:
             name: roles/manage_ec2_instances
+          vars:
+            ami_id: "{{ ami_id }}"

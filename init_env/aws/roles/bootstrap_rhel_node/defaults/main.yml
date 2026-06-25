@@ -3,3 +3,7 @@ containerized_installer_user: "aap"
 containerized_installer_user_home: "/home/{{ containerized_installer_user }}"
 containerized_installer_bootstrap_user: "{{ ansible_user | default('ec2-user') }}"
 containerized_installer_bootstrap_user_home: "/home/{{ containerized_installer_bootstrap_user }}"
+
+bootstrap_packages:
+  - ansible-core
+  - git-core

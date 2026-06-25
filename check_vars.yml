@@ -45,7 +45,7 @@
     # ---- Required variables (~/agof_vault.yml) ----
     _vault_vars:
       - name: offline_token
-        description: "Red Hat offline token (used for RHEL image builds on console.redhat.com)"
+        description: "Red Hat offline token (used to download the AAP containerized installer)"
         hint: "Set in ~/agof_vault.yml. Generate at https://access.redhat.com/management/api"
 
       - name: redhat_username
@@ -64,7 +64,7 @@
         description: "Base64-encoded manifest file to entitle AAP Controller"
         hint: !unsafe >-
           Set in ~/agof_vault.yml. Download a manifest from
-          https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.6/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files
+          https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files
           Then set: manifest_content: "{{ lookup('file', '~/path/to/manifest.zip') | b64encode }}"
 
       - name: org_number_vault
@@ -72,7 +72,7 @@
         hint: "Set in ~/agof_vault.yml. Find it at https://access.redhat.com/management -> Overview (top-left)"
 
       - name: activation_key_vault
-        description: "Activation Key name for the imagebuilder RHEL image"
+        description: "Activation Key name for RHEL registration at bootstrap time"
         hint: "Set in ~/agof_vault.yml. Create one at https://access.redhat.com/management/activation_keys"
 
       - name: automation_hub_token_vault

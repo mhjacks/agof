@@ -5,7 +5,11 @@
   become: true
   gather_facts: true
   vars_files:
+    - "../vars/main.yml"
     - "~/agof_vault.yml"
+  vars:
+    ansible_user: "{{ containerized_installer_user | default('aap') }}"
+    ansible_remote_tmp: "{{ containerized_installer_user_home }}/.ansible/tmp"
   tasks:
     - name: AAP Containerized installer prereqs - packages and user setup
       ansible.builtin.include_role:
@@ -13,10 +17,13 @@
 
 - name: "Run the containerized installer"
   hosts: aap_controllers
-  become_user: "{{ containerized_installer_user | default('aap') }}"
-  become: true
+  gather_facts: true
   vars_files:
+    - "../vars/main.yml"
     - "~/agof_vault.yml"
+  vars:
+    ansible_user: "{{ containerized_installer_user | default('aap') }}"
+    ansible_remote_tmp: "{{ containerized_installer_user_home }}/.ansible/tmp"
   tasks:
     - name: Install AAP
       ansible.builtin.include_role:

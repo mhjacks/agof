@@ -1,0 +1,17 @@
+---
+agof_bootstrap_target: 'aws'
+
+bootstrap_allowable_values:
+  - "aws"
+
+rhel_version: "10"
+rhel_ami_owner: "309956199498"
+rhel_ami_name_filter: "RHEL-{{ rhel_version }}*-x86_64*"
+rhel_ami_id: "{{ rhel_ami_id_vault | default('') }}"
+
+bootstrap_packages:
+  - ansible-core
+  - git-core
+
+org_number: "{{ org_number_vault }}"
+activation_key: "{{ activation_key_vault }}"

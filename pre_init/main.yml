@@ -53,11 +53,11 @@
     - name: "Assert that we have a valid target platform"
       ansible.builtin.assert:
         that:
-          - agof_bootstrap_target | length > 0
-          - agof_bootstrap_target in bootstrap_allowable_values
-        fail_msg: "{{ agof_bootstrap_target }} is not a supported bootstrap target"
-        success_msg: "Assertion passed: bootstrapping on {{ agof_bootstrap_target }}"
+          - (agof_bootstrap_target | default('aws')) | length > 0
+          - (agof_bootstrap_target | default('aws')) in bootstrap_allowable_values
+        fail_msg: "{{ agof_bootstrap_target | default('aws') }} is not a supported bootstrap target"
+        success_msg: "Assertion passed: bootstrapping on {{ agof_bootstrap_target | default('aws') }}"
 
     - name: "Set our target bootstrap platform"
       ansible.builtin.set_fact:
-        bootstrap_target: "{{ agof_bootstrap_target }}"
+        bootstrap_target: "{{ agof_bootstrap_target | default('aws') }}"

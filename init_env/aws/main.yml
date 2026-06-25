@@ -6,6 +6,7 @@
   become: false
   vars_files:
     - "vars/aws_vars.yml"
+    - "../vars/bootstrap_vars.yml"
     - "../../vars/main.yml"
     - "~/agof_vault.yml"
   vars:
@@ -32,29 +33,39 @@
       ignore_errors: true
       when: save_aws_vars
 
-    - name: Copy AMI image if needed
-      block:
-        - name: Check for AMI in ec2 region
-          amazon.aws.ec2_ami:
-            image_id: "{{ imagebuilder_ami }}"
-            region: "{{ ec2_region }}"
-          register: ami_query
-          failed_when: ami_query.msg is search('InvalidAMIID.NotFound')
-      rescue:
-        - name: Copy image to desired region
-          community.aws.ec2_ami_copy:
-            source_region: "{{ ami_source_region }}"
-            region: "{{ ec2_region }}"
-            source_image_id: "{{ imagebuilder_ami }}"
-            wait: true
-          register: ami_copy
-
-        - name: Set AMI ID now that we have a new one
-          ansible.builtin.set_fact:
-            copied_ami: "{{ ami_copy.image_id }}"
+    - name: Migrate legacy imagebuilder_ami state variable
+      ansible.builtin.set_fact:
+        rhel_ami_id: "{{ imagebuilder_ami }}"
       when:
-        - copied_ami is not defined
-        - ami_source_region != ec2_region
+        - rhel_ami_id is not defined or rhel_ami_id | length == 0
+        - imagebuilder_ami is defined
+        - imagebuilder_ami | length > 0
+
+    - name: Resolve RHEL AMI ID
+      when: rhel_ami_id is not defined or rhel_ami_id | length == 0
+      block:
+        - name: Look up latest RHEL AMI in target region
+          amazon.aws.ec2_ami_info:
+            owners:
+              - "{{ rhel_ami_owner }}"
+            filters:
+              name: "{{ rhel_ami_name_filter }}"
+              architecture: x86_64
+              state: available
+            region: "{{ ec2_region }}"
+          register: rhel_amis
+
+        - name: Assert matching RHEL AMIs were found
+          ansible.builtin.assert:
+            that:
+              - rhel_amis.images | length > 0
+            fail_msg: >-
+              No RHEL AMI found in {{ ec2_region }} matching {{ rhel_ami_name_filter }}
+              (owner {{ rhel_ami_owner }}). Try a different rhel_version or set rhel_ami_id_vault.
+
+        - name: Set RHEL AMI ID from lookup
+          ansible.builtin.set_fact:
+            rhel_ami_id: "{{ (rhel_amis.images | sort(attribute='creation_date') | last).image_id }}"
 
     - name: Save variables for later if desired
       ansible.builtin.copy:
@@ -67,10 +78,7 @@
 
            pattern_dns_zone: '{{ pattern_dns_zone }}'
 
-           {% if copied_ami is defined %}
-           copied_ami: '{{ copied_ami }}'
-           {% endif %}
-           imagebuilder_ami: '{{ imagebuilder_ami }}'
+           rhel_ami_id: '{{ rhel_ami_id }}'
         dest: '{{ pattern_state_rootdir }}/{{ ec2_name_prefix }}/aws_state_vars.yml'
       when: save_aws_vars
 
@@ -78,7 +86,7 @@
       ansible.builtin.include_role:
         name: roles/manage_ec2_instances
       vars:
-        ami_id: "{{ copied_ami | default(imagebuilder_ami) }}"
+        ami_id: "{{ rhel_ami_id }}"
 
 - name: Ensure AWS nodes are ready for post-provisioning
   hosts: aws_nodes
@@ -86,7 +94,10 @@
   gather_facts: false
   vars_files:
     - "vars/aws_vars.yml"
+    - "../vars/bootstrap_vars.yml"
     - "~/agof_vault.yml"
+  vars:
+    ansible_remote_tmp: "/home/{{ ansible_user | default('ec2-user') }}/.ansible/tmp"
   tasks:
     - name: "Wait for VM(s) to be ready for SSH"
       ansible.builtin.wait_for_connection:
@@ -99,14 +110,17 @@
   gather_facts: true
   vars_files:
     - "vars/aws_vars.yml"
+    - "../vars/bootstrap_vars.yml"
+    - "../../vars/main.yml"
     - "~/agof_vault.yml"
   vars:
     ec2_instances_built: "{{ hostvars['localhost']['ec2_instances_built'] }}"
     ipaclient_configure_dns_resolver: false
+    ansible_remote_tmp: "/home/{{ ansible_user | default('ec2-user') }}/.ansible/tmp"
   tasks:
     - name: "Ensure remote tmp directory"
       ansible.builtin.file:
-        path: '{{ aws_remote_tmp }}'
+        path: "/home/{{ ansible_user }}/.ansible/tmp"
         mode: '0700'
         owner: '{{ ansible_user }}'
         recurse: true
@@ -134,3 +148,45 @@
         owner: root
         group: root
         mode: '0644'
+
+- name: Bootstrap RHEL nodes
+  hosts: aws_nodes
+  become: true
+  gather_facts: true
+  vars_files:
+    - "vars/aws_vars.yml"
+    - "../vars/bootstrap_vars.yml"
+    - "../../vars/main.yml"
+    - "~/agof_vault.yml"
+  vars:
+    ansible_remote_tmp: "/home/{{ ansible_user | default('ec2-user') }}/.ansible/tmp"
+  tasks:
+    - name: Register and prepare RHEL nodes for AAP install
+      ansible.builtin.include_role:
+        name: roles/bootstrap_rhel_node
+
+- name: Switch controller hosts to AAP installer SSH user
+  hosts: aap_controllers
+  gather_facts: false
+  vars_files:
+    - "vars/aws_vars.yml"
+    - "../vars/bootstrap_vars.yml"
+    - "../../vars/main.yml"
+    - "~/agof_vault.yml"
+  tasks:
+    - name: Update inventory to use AAP installer SSH user
+      ansible.builtin.add_host:
+        name: "{{ inventory_hostname }}"
+        ansible_user: "{{ containerized_installer_user }}"
+        ansible_remote_tmp: "{{ containerized_installer_user_home }}/.ansible/tmp"
+
+    - name: Ensure ansible async directory exists for AAP installer user
+      ansible.builtin.file:
+        path: "{{ containerized_installer_user_home }}/.ansible/.async"
+        state: directory
+        owner: "{{ containerized_installer_user }}"
+        group: "{{ containerized_installer_user }}"
+        mode: "0700"
+
+    - name: Reset SSH connection for AAP installer user
+      ansible.builtin.meta: reset_connection

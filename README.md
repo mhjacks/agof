@@ -18,7 +18,7 @@
   - 4.2. [Initialization Environment Configuration](#InitializationEnvironmentConfiguration)
   - 4.3. [Automation Hub Specific Configuration](#AutomationHubSpecificConfiguration)
   - 4.4. [AWS-Specific Configuration](#AWS-SpecificConfiguration)
-  - 4.5. [ImageBuilder-Specific Configuration](#ImageBuilder-SpecificConfiguration)
+  - 4.5. [RHEL Bootstrap Configuration](#RHEL-BootstrapConfiguration)
 - 1. [What the Framework Does, Step-by-Step](#WhattheFrameworkDoesStep-by-Step)
   - 5.1. [Pre-GitOps Steps](#Pre-GitOpsSteps)
     - 5.1.1. [Pre-init (mandatory)](#Pre-init)
@@ -48,7 +48,7 @@ The thinking behind this effort is documented in the [Ansible Pattern Theory](ht
 - **Podman** (version 4.3.0 or later): All commands are run inside a utility container via `pattern.sh`.
 - **An `~/agof_vault.yml` file**: Contains credentials, configuration variables, and secrets for the installation. See the [agof_vault.yml Configuration](#agof_vault.ymlConfiguration) section for details.
 - **A Red Hat subscription**: Needed for RHEL entitlement and access to AAP content.
-- **An [AAP manifest file](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.6/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files)**: Required to entitle the AAP Controller (see `manifest_content` in the configuration section).
+- **An [AAP manifest file](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files)**: Required to entitle the AAP Controller (see `manifest_content` in the configuration section).
 - **An Automation Hub token**: For downloading certified and validated Ansible content from [console.redhat.com](https://console.redhat.com/ansible/automation-hub/token).
 - **AWS credentials** (for the Default Install only): An AWS account with permissions to create VPCs, subnets, security groups, and EC2 instances.
 
@@ -58,15 +58,16 @@ The thinking behind this effort is documented in the [Ansible Pattern Theory](ht
 
 ## 2. <a name='HowtoUseIt'></a>How to Use It
 
-The default installation will provide an AAP 2.6 installation deployed via the Containerized Installer, with the following services available on the AAP node (where `aapnode.fqdn` is the fully qualified domain name of your AAP host):
+The default installation will provide an AAP 2.7 installation deployed via the Containerized Installer, with the following services available on the AAP node (where `aapnode.fqdn` is the fully qualified domain name of your AAP host):
 
 | URL Pattern | Service |
 |-------------|---------|
-| <https://aapnode.fqdn/> | Controller API |
+| <https://aapnode.fqdn/> | Platform gateway (default UI entry point) |
+| <https://aapnode.fqdn/api/controller/v2/> | Controller API |
 
 Automation Hub and EDA are enabled by default, but they can be turned off if desired (see the `automation_hub` and `eda` variables).
 
-By default, the framework will apply license content specified by the `manifest_content` variable (see [obtaining a manifest file](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.6/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files)), but will not further configure Controller or Automation Hub beyond the defaults.
+By default, the framework will apply license content specified by the `manifest_content` variable (see [obtaining a manifest file](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files)), but will not further configure Controller or Automation Hub beyond the defaults.
 
 From there, a minimal example pattern is available to download and run [here](https://github.com/validatedpatterns-demos/agof_minimal_config.git). To use this example, set the following variables in your `agof_vault.yml`.
 Any repo that can be used with the controller_configuration collection can be used as the `agof_iac_repo`.
@@ -81,7 +82,7 @@ agof_iac_repo: "https://github.com/validatedpatterns-demos/agof_minimal_config.g
 ./pattern.sh make install
 ```
 
-This builds the default pattern configuration on AWS, which (by default) includes a containerized install of AAP 2.6 on a single AWS VM. Various add-ons can be included by adding variables to the `~/agof_vault.yml` file as described below - these options will all be honored as the pattern installs itself.
+This builds the default pattern configuration on AWS, which (by default) includes a containerized install of AAP 2.7 on a single AWS VM. Various add-ons can be included by adding variables to the `~/agof_vault.yml` file as described below - these options will all be honored as the pattern installs itself.
 
 ### 2.2. <a name='Uninstallation'></a>Uninstallation
 
@@ -101,7 +102,7 @@ This is a framework for building Validated Patterns that use Ansible Automation 
 ./pattern.sh make api_install
 ```
 
-In this model, you provide an (already provisioned) AAP endpoint. It does not need to be entitled, it just needs to be running the AAP Controller. You supply the [manifest](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.6/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files) contents, endpoint hostname, admin username (defaults to "admin"), and admin password, and then the installation hands off to a `agof_controller_config_dir` you define. This is provided for users who have their own AAP installations on bare metal or on-prem or do not want to run on AWS. It is also useful in situations where the AAP deployment topology is more complex than what we provide in the pattern provisioner.
+In this model, you provide an (already provisioned) AAP endpoint. It does not need to be entitled, it just needs to be running the AAP Controller. You supply the [manifest](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files) contents, endpoint hostname, admin username (defaults to "admin"), and admin password, and then the installation hands off to a `agof_controller_config_dir` you define. This is provided for users who have their own AAP installations on bare metal or on-prem or do not want to run on AWS. It is also useful in situations where the AAP deployment topology is more complex than what we provide in the pattern provisioner.
 
 ### 3.2. <a name='FromOSInstall'></a>"From OS" Install
 
@@ -144,7 +145,6 @@ localhost
 ansible_user=myuser
 ansible_ssh_pass=mypass
 ansible_become_pass=mypass
-ansible_remote_tmp=/tmp/.ansible
 username=myuser
 aap_hostname=192.168.5.207
 ```
@@ -155,7 +155,7 @@ aap_hostname=192.168.5.207
 ./pattern.sh make install
 ```
 
-In this model, you provide AWS credentials in addition to the other components needed in the "bare" install. The framework will build an AWS image using Red Hat's ImageBuilder, deploy that image onto a new AWS VPC and subnet, and deploy AAP on that image using the command line installer. It will then hand over the configuration of the AAP installation to the specified `agof_controller_config_dir`.
+In this model, you provide AWS credentials in addition to the other components needed in the "bare" install. The framework will look up a Red Hat RHEL marketplace AMI, deploy EC2 instances onto a new AWS VPC and subnet, register and bootstrap each node, and deploy AAP using the containerized installer. It will then hand over the configuration of the AAP installation to the specified `agof_controller_config_dir`.
 
 ### 3.4. <a name='ConvenienceFeaturesInstalldefinedbyoptionsinthedefaultinstall'></a>Convenience Features Install (defined by options in the "default" install)
 
@@ -184,7 +184,7 @@ Additional VM targets (such as IdM and Satellite) can be defined using the `ec2_
 | redhat_password | Red Hat Subscriber Password (for RHEL entitlement) | true | | |
 | redhat_registry_username_vault | Red Hat Registry Username (for registry.redhat.io container images) | true | | |
 | redhat_registry_password_vault | Red Hat Registry Password (for registry.redhat.io container images) | true | | |
-| manifest_content | Base64 encoded [Manifest](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.6/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files) to Entitle | true | | Can be loaded directly from a file using a construct like this: `"{{ lookup('file', '~/Downloads/manifest.zip') | b64encode }}"` |
+| manifest_content | Base64 encoded [Manifest](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files) to Entitle | true | | Can be loaded directly from a file using a construct like this: `"{{ lookup('file', '~/Downloads/manifest.zip') | b64encode }}"` |
 | automation_hub_certified_url | URL for Certified Content | false | <https://console.redhat.com/api/automation-hub/content/published/> | This refers to the automation hub section on [https://console.redhat.com](https://console.redhat.com). It is the endpoint that is used to download Certified Content in addition to any public Galaxy content needed |
 | automation_hub_validated_url | URL for Validated Content | false | <https://console.redhat.com/api/automation-hub/content/validated/> | This refers to the automation hub section on [https://console.redhat.com](https://console.redhat.com). It is the endpoint that is used to download Validated Content in addition to any public Galaxy content needed |
 | automation_hub_token_vault| Subscriber-specific token for Content | true | <https://console.redhat.com/ansible/automation-hub/token> |
@@ -200,7 +200,7 @@ Additional VM targets (such as IdM and Satellite) can be defined using the `ec2_
 | init_env_collection_install | Whether to install collections required by the framework | false | true | |
 | init_env_collection_install_force | Whether to use the `force` argument when installing collections | false | false | Forces the installation of declared dependencies if true |
 | special_collection_installs | "Bundled" collection installations (references files in repodir) | false | `[]` | A mechanism to allow the installation of collections bundled into the pattern, if the ones published in galaxy and/or Automation Hub are not sufficient |
-| offline_token | Red Hat Offline Token | false | | Used to build the imagebuilder image |
+| offline_token | Red Hat Offline Token | false | | Used to download the AAP containerized installer |
 
 ### 4.3. <a name='AutomationHubSpecificConfiguration'></a>Automation Hub Specific Configuration
 
@@ -216,25 +216,23 @@ Additional VM targets (such as IdM and Satellite) can be defined using the `ec2_
 
 | Name | Description | Required | Default | Notes |
 | ------------------------- | ------------------------------------ | -------- | ------------------ | ------ |
-| aws_account_nbr_vault | AWS Account Number | false | | The AWS Account Number is used by ImageBuilder to share the resulting image to as an AMI |
+| aws_account_nbr_vault | AWS Account Number | false | | Optional; used for reference only |
 | aws_access_key_vault | AWS Access Key String | false | | The AWS Access Key - can be included if other pattern elements cannot read AWS credentials directly for subsequent pattern use |
 | aws_secret_key_vault | AWS Secret Key String | false | | The AWS Secret Key - like the access key, can be added if other pattern elements need it |
-| ec2_region | EC2 region to use for builds | false | | us-east-1 is a reasonable value to use because this is where imagebuilder puts images by default |
+| ec2_region | EC2 region to use for builds | false | | Any region where Red Hat publishes RHEL marketplace AMIs |
 | ec2_name_prefix | Text to add for EC2 | false | | This is a name to disambiguate your pattern from anything else that might be running in your AWS account. A VPC, subnet, and security group is built from this, and the prefix is added to the `pattern_dns_zone` by default. Additionally, the SSH private key is stored locally in `~/{{ ec2_name_prefix }}`. |
 | pattern_dns_zone | Zone to use for route53 updates | false | | Definitely set this if doing DNS updates |
 | ec2_instances_xtra | Dictionary of additional ec2_instances to build | false | | Build additional VMs as part of the pattern |
 
-### 4.5. <a name='ImageBuilder-SpecificConfiguration'></a>ImageBuilder-Specific Configuration
-
-*Note:* If you are providing an AMI via the `imagebuilder_ami` variable as opposed to building one from console.redhat.com for the pattern, the pattern still assumes that the RHEL instance will be entitled and will be running a suitable version of RHEL.
+### 4.5. <a name='RHEL-BootstrapConfiguration'></a>RHEL Bootstrap Configuration
 
 | Name | Description | Required | Default | Notes |
 | ------------------------- | ------------------------------------ | -------- | ------------------ | ------- |
-| org_number_vault | Red Hat Subscriber Organization Number | true | | This is the organization number associated with the RHEL instances you need to entitle |
-| activation_key_vault | Activation Key Name to embed in image | true | | This is an activation key for the Red Hat CDN. It is expected to be able to enable both the base RHEL repos and the AAP repos. |
-| skip_imagebuilder_build | Flag to skip imagebuilder build (also set `imagebuilder_ami` if true) | false | false | |
-| imagebuilder_ami | AMI to use for VM creation in AWS | false | | It is very possible to re-use another imagebuilder build from a previous installation of the pattern framework, and saves ~15 minutes on a new pattern install to re-use such an image. |
-| ami_source_region | Source Region to copy AMI from if not present in target region | false | us-east-1 | Imagebuilder puts its images in us-east-1 by default, but the framework can copy an image built there to another region if you specify one here. If you specify a non-imagebuilder ami and it "starts out" in a different region, you can specify that here. |
+| org_number_vault | Red Hat Subscriber Organization Number | true | | Used to register RHEL instances at bootstrap time |
+| activation_key_vault | Activation Key Name for RHEL registration | true | | Expected to enable base RHEL repos and AAP repos |
+| rhel_version | Major RHEL version for AMI lookup | false | `10` | Matches latest `RHEL-{version}.*` marketplace AMI in the target region |
+| rhel_ami_id_vault | Pinned AWS AMI ID | false | | Skips AMI lookup when set |
+| bootstrap_packages | Packages installed after registration | false | `[ansible-core, git-core]` | Installed on each node before AAP install |
 
 ## 5. <a name='WhattheFrameworkDoesStep-by-Step'></a>What the Framework Does, Step-by-Step
 
@@ -258,19 +256,13 @@ The next thing the pre-init play does is install dependency collections based on
 
 Environment initialization includes the steps necessary to build the environment (VMs) to install AAP and related tooling; currently the framework can do this on AWS. This step is optional if you wish to provide either an AAP controller API endpoint OR else bring your own inventory/VMs to install AAP Controller and (optionally) Automation Hub on.
 
-##### [Image build (optional)](init_env/buildimage/main.yml) (optional)
-
-This play builds an image using the Red Hat Console's imagebuilder service; the end result of this process is an image that will serve as an AMI in AWS. (ImageBuilder can build other types of images as well.) The key aspects of this image are that they include the cloud-init package (which helps with certain aspects of initialization), but more importantly, they include the organization number and activation key so that images that are instantiated with this AMI are automatically registered and enabled to install content via the Red Hat CDN.
-
-These images tend to be fairly static, so it is not necessary to build a brand new image every time you run the pattern. You can save the AMI from a previous pattern run, and re-use it as long as you like. Building and uploading the image to AWS represents about 15 minutes of the runtime of the pattern installation.
-
 ##### [Initialize the Environment (for AWS)](init_env/aws/main.yml) (optional)
 
-This play handles all the AWS-specific setup necessary to run AAP, (optionally) Automation Hub, (optionally) IdM, (optionally) Satellite, and also offers you the ability to install VMs of your own for a pattern via overrides. The reason for this is that installing the VMs at this stage allows the customer/user to not have to involve AWS credentials in the pattern itself if they do not wish to do so. Of course they are free to include workflows that interact with AWS or other infrastructure if they want - this was done with the intention of simplifying that process if AWS was an implementation detail of the pattern as opposed to the intention of it.
+This play handles all the AWS-specific setup necessary to run AAP and optionally Automation Hub. It looks up the latest Red Hat RHEL marketplace AMI in the target region (or uses a pinned AMI from the vault), provisions VPC/subnet/security group infrastructure, launches EC2 instances, registers each node with Red Hat Subscription Manager, installs bootstrap packages, and creates the `aap` user with the same SSH keys as `ec2-user`.
 
-The two key roles that are invoked here are [manage_ec2_infra](init_env/aws/roles/manage_ec2_infra/) and [manage_ec2_instances](init_env/aws/roles/manage_ec2_instances/). Both of these have been adapted from [ansible-workshops](https://github.com/ansible/workshops). The `manage_ec2_infra` role is responsible for setting up the VPC, subnet, and security group for the patten. `manage_ec2_instances` is responsible for actually building the VM instances. It will also manage route53 DNS entries. It is safe to run these roles repeatedly; they will not "double allocate" VMs as long as the VMs are running.
+The key roles invoked here are [manage_ec2_infra](init_env/aws/roles/manage_ec2_infra/), [manage_ec2_instances](init_env/aws/roles/manage_ec2_instances/), and [bootstrap_rhel_node](init_env/aws/roles/bootstrap_rhel_node/). Both EC2 roles have been adapted from [ansible-workshops](https://github.com/ansible/workshops). The `manage_ec2_infra` role sets up the VPC, subnet, and security group for the pattern. `manage_ec2_instances` builds the VM instances and manages Route53 DNS entries. `bootstrap_rhel_node` registers RHEL, installs packages, and prepares the AAP installer user. It is safe to run these roles repeatedly; they will not double-allocate VMs as long as the VMs are running.
 
-These roles also include code for making hostnames durable across reboots, as well as maintaining `/etc/hosts` on all AWS nodes in the bootstrap set that include all of the other servers in the bootstrap set.
+These roles also include code for making hostnames durable across reboots, maintaining `/etc/hosts` on all AWS nodes in the bootstrap set, and switching SSH access to the `aap` user for subsequent install phases.
 
 ##### [Update Route53 DNS (if needed)](init_env/aws/fix_aws_dns.yml)
 
@@ -286,8 +278,12 @@ The teardown play will terminate all VMs associated with a VPC and subnet, and r
 | ------------------------- | ------------------------------------ | -------- | ------------------ | ------- |
 | containerized_installer_user | Unprivileged user to create to run AAP | true | `aap` | |
 | containerized_installer_user_home | Directory to install containerized AAP into | true | `/home/{{ containerized_installer_user }}` | |
-| containerized_installer_version | Minor version of AAP to install | false | "2.6" | |
+| containerized_installer_version | Minor version of AAP to install | false | "2.7" | Uses the AAP 2.7 containerized growth (all-in-one) inventory template |
 | automation_hub | Boolean to indicate whether to install automation_hub | true | true | |
+| controller_percent_memory_capacity | Controller memory allocation fraction | false | `0.5` | Growth topology default from AAP 2.7 installer |
+| hub_seed_collections | Seed hub with default collections | false | `false` | Growth topology default from AAP 2.7 installer |
+| automationmetrics_pg_password | Metrics service database password | false | `{{ db_password }}` | Required for AAP 2.7 when controller is installed |
+| automationmetrics_controller_read_pg_password | Metrics read-only controller DB password | false | `{{ db_password }}` | Required for AAP 2.7 when controller is installed |
 | postgresql_admin_username | Name of postgres admin for services | true | `postgres` | |
 | postgresql_admin_password | Password for the postgres user for services | true | `{{ db_password }}` | |
 | ee_extra_images | Specifications for extra execution environments to load | false | `[]` | |
@@ -312,9 +308,9 @@ The teardown play will terminate all VMs associated with a VPC and subnet, and r
 | eda_workers | Number of EDA workers | false | `2` | |
 | eda_activation_workers | Number of EDA activation workers | false | `2` | |
 
-First, we run the [Installer Prereqs](containerized_install/roles/installer_prereqs/) role. This sets up a user (default: `aap`) to run AAP as, sets up password-less sudo for that user, and installs the pattern user's `~/.ssh/id_rsa.pub` as an authorized_key for the user. The sudo rule simplifies the process of running the containerized installer, and by default is removed in the cleanup stage. This role also sets `linger` on the AAP user so that services will start at boot time under the AAP user.
+First, we run the [Installer Prereqs](containerized_install/roles/installer_prereqs/) role. On AWS deployments the `aap` user is usually already created during environment initialization; this role ensures required packages, passwordless sudo, SSH access, and linger are configured. The sudo rule simplifies the process of running the containerized installer, and by default is removed in the cleanup stage. This role also sets `linger` on the AAP user so that services will start at boot time under the AAP user.
 
-Next, we run the [Containerized Installer](containerized_install/roles/installer/) role. This runs the containerized installer as the designated user. This user *cannot* be root (because of how it uses and configures containerized services). This role downloads and executes the installer, and also places a [manifest file](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.6/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files) (designated by the `manifest_content` variable) as `manifest.zip` to entitle the controller. It runs the containerized installer.
+Next, we run the [Containerized Installer](containerized_install/roles/installer/) role. This runs the containerized installer as the designated user on a single-node growth topology suitable for AAP 2.7, including the required metrics service. This user *cannot* be root (because of how it uses and configures containerized services). This role downloads and executes the installer, and also places a [manifest file](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files) (designated by the `manifest_content` variable) as `manifest.zip` to entitle the controller. It runs the containerized installer.
 
 Finally, we run the [cleanup](containerized_install/roles/installer_cleanup/) role if it is enabled (which it is by default). This removed the sudo rule from the AAP user, and removes the manifest.zip file. The installation is now ready for you to use.
 
@@ -324,7 +320,7 @@ This play is really the heart and focus of this framework. The rest of the frame
 
 ###### Entitle AAP
 
-The play uses the same technique and variables to entitle AAP as the role above does; but since we want to preserve the option to call it outside that role, it is duplicated. The key thing is to populate `manifest_contents` with a suitable [manifest file](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.6/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files).
+The play uses the same technique and variables to entitle AAP as the role above does; but since we want to preserve the option to call it outside that role, it is duplicated. The key thing is to populate `manifest_contents` with a suitable [manifest file](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files).
 
 ###### Configure AAP
 

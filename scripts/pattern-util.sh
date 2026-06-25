@@ -9,7 +9,7 @@ function version {
 }
 
 if [ -z "$PATTERN_UTILITY_CONTAINER" ]; then
-	PATTERN_UTILITY_CONTAINER="quay.io/validatedpatterns/utility-container:v1.0.4"
+	PATTERN_UTILITY_CONTAINER="quay.io/validatedpatterns/utility-container"
 fi
 # If PATTERN_DISCONNECTED_HOME is set it will be used to populate both PATTERN_UTILITY_CONTAINER
 # and PATTERN_INSTALL_CHART automatically

@@ -1,9 +1,14 @@
 ---
-- name: "Remove no-longer-needed files"
+- name: Remove installer artifacts from user home
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
   loop:
-    - "/etc/sudoers.d/{{ containerized_installer_user }}"
     - "{{ containerized_installer_user_home }}/aap_installer.tar.gz"
     - "{{ containerized_installer_user_home }}/manifest.zip"
+
+- name: Remove passwordless sudo for installer user
+  ansible.builtin.file:
+    path: "/etc/sudoers.d/{{ containerized_installer_user }}"
+    state: absent
+  become: true

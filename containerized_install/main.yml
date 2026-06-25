@@ -31,11 +31,14 @@
 
 - name: "Remove sudo file for installer user"
   hosts: aap_controllers
-  become: true
   gather_facts: false
   vars_files:
+    - "../vars/main.yml"
     - "~/agof_vault.yml"
+  vars:
+    ansible_user: "{{ containerized_installer_user | default('aap') }}"
   tasks:
     - name: Cleanup scaffolding after install
       ansible.builtin.include_role:
         name: installer_cleanup
+      when: containerized_installer_cleanup | default(true) | bool

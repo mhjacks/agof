@@ -1,0 +1,11 @@
+---
+# AAP 2.5 collection pins per Red Hat CaC compatibility matrix.
+collections:
+  - name: ansible.platform
+    version: '>=2.5.0,<2.6'
+  - name: ansible.controller
+    version: '>=4.6.0,<4.7'
+  - name: ansible.hub
+    version: '>=1.0.0,<1.0.4'
+  - name: ansible.eda
+    version: '>=2.5.0,<2.6'

@@ -7,8 +7,8 @@ pattern_name: '{{ ec2_name_prefix }}'
 
 aap_hostname: 'aap.{{ pattern_name }}.{{ pattern_dns_zone }}'
 
-# Optional vault tokens for config-as-code (preferred for AAP 2.6 and 2.7).
-# When unset, a gateway token is bootstrapped from admin credentials before dispatch.
+# Optional vault tokens for config-as-code.
+# AAP 2.6 and 2.7 require a gateway OAuth token; AAP 2.5 accepts token or admin password.
 # aap_token_vault:
 # hub_token_vault:
 
@@ -16,7 +16,7 @@ aap_hostname: 'aap.{{ pattern_name }}.{{ pattern_dns_zone }}'
 aap_username: "{{ admin_user | default('admin') }}"
 aap_password: "{{ admin_password }}"
 
-# AAP minor version (2.6 or 2.7). Used for logging; collection pins come from preinit.
+# AAP minor version (2.5, 2.6, or 2.7). Used for logging; collection pins come from preinit.
 aap_version: "{{ containerized_installer_version | default('2.7') }}"
 
 api_prefix: api/controller/v2

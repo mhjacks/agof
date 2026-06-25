@@ -97,15 +97,25 @@
   until: license_controller is not failed
   retries: 5
 
+- name: Obtain config-as-code credentials for AAP 2.5
+  ansible.builtin.include_tasks: obtain_aap_auth_25.yml
+  when: aap_version is version('2.5', '==')
+
 - name: Obtain platform gateway API tokens for config-as-code dispatch
   ansible.builtin.include_tasks: obtain_aap_gateway_token.yml
+  when: aap_version is version('2.6', '>=')
 
 - name: Show AAP version and auth mode for config-as-code
   ansible.builtin.debug:
     msg:
       - "aap_version: {{ aap_version }}"
       - "aap_hostname: {{ aap_hostname }}"
-      - "config-as-code auth: token (source: {{ agof_aap_token_source | default('unknown') }})"
+      - >-
+        config-as-code auth: {{
+          'token (source: ' ~ agof_aap_token_source ~ ')'
+          if (agof_aap_auth_mode | default('token')) == 'token'
+          else 'password (gateway username/password)'
+        }}
       - "hub token: {{ 'yes (source: ' ~ agof_hub_token_source ~ ')' if hub_token is defined and hub_token | length > 0 else 'not set' }}"
 
 - name: Debug infra.controller_configuration.dispatch common variables
@@ -113,7 +123,8 @@
     msg:
       - "aap_hostname: {{ aap_hostname }}"
       - "aap_validate_certs: {{ aap_validate_certs }}"
-      - "aap_token: (set, not logged)"
+      - "config-as-code auth mode: {{ agof_aap_auth_mode | default('token') }}"
+      - "aap_token: {{ '(set, not logged)' if (agof_aap_auth_mode | default('token')) == 'token' else '(not used)' }}"
       - "aap_request_timeout: {{ aap_request_timeout }}"
       - "aap_configuration_async_dir: {{ aap_configuration_async_dir }}"
   when:
@@ -124,7 +135,7 @@
   ansible.builtin.include_role:
     name: agof_configure_aap/roles/pre_config_fixups
 
-- name: "Configure AAP - Version 2.6+"
+- name: "Configure AAP - Version 2.5+"
   block:
     - name: "Configure AAP"
       ansible.builtin.include_role:

@@ -4,7 +4,7 @@ automation_hub: true
 
 containerized_install: true
 
-# AAP minor version to install (2.6 or 2.7). Also drives collection pins at preinit.
+# AAP minor version to install (2.5, 2.6, or 2.7). Also drives collection pins at preinit.
 containerized_installer_version: "2.7"
 
 containerized_installer_user: 'aap'
@@ -22,6 +22,7 @@ agof_config_repo_version: "{{ agof_cac_repo_version | default(agof_iac_repo_vers
 
 # Supported AAP minor releases for install + config-as-code.
 agof_supported_aap_versions:
+  - "2.5"
   - "2.6"
   - "2.7"
 

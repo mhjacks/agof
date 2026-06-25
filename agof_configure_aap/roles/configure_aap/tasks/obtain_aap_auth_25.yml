@@ -74,15 +74,12 @@
       no_log: true
 
   rescue:
-    - name: Report platform gateway token failure
-      ansible.builtin.fail:
+    - name: Note gateway token bootstrap unavailable on AAP 2.5
+      ansible.builtin.debug:
         msg: >-
-          Failed to obtain a platform gateway OAuth token from
-          https://{{ aap_hostname }}/api/gateway/v1/tokens/.
-          AAP 2.6 and 2.7 use token authentication for config-as-code. Either set aap_token_vault in
-          ~/agof_vault.yml with a gateway OAuth token, or ensure admin_password (or aap_password) can bootstrap
-          one from the platform gateway URL. Also verify collection versions match your AAP release
-          (containerized_installer_version or aap_version 2.6/2.7, then re-run make preinit).
+          Could not obtain a platform gateway OAuth token from
+          https://{{ aap_hostname }}/api/gateway/v1/tokens/. Falling back to
+          gateway username/password for config-as-code.
 
 - name: Record vault-provided platform gateway token source
   ansible.builtin.set_fact:
@@ -90,11 +87,35 @@
     agof_aap_auth_mode: token
   when:
     - agof_aap_token_source is not defined
+    - agof_aap_token_is_usable | default(false) | bool
     - aap_token is defined
     - aap_token | length > 0
 
+- name: Use platform gateway credentials for config-as-code on AAP 2.5
+  when: not (agof_aap_token_is_usable | default(false) | bool)
+  block:
+    - name: Set gateway username and password for dispatch
+      ansible.builtin.set_fact:
+        aap_username: "{{ aap_username | default(admin_user | default('admin')) }}"
+        aap_password: "{{ aap_password | default(admin_password) }}"
+        agof_aap_auth_mode: password
+        aap_token: ""
+      no_log: true
+
+    - name: Assert admin credentials are available for config-as-code
+      ansible.builtin.assert:
+        that:
+          - aap_password is defined
+          - aap_password | string | length > 0
+        fail_msg: >-
+          No platform gateway OAuth token or admin credentials are available for config-as-code on
+          AAP 2.5. Set aap_token_vault in ~/agof_vault.yml, or ensure admin_password (or aap_password)
+          is set. Also verify collection versions match your AAP release
+          (containerized_installer_version or aap_version 2.5, then re-run make preinit).
+
 - name: Bootstrap Automation Hub API token via platform gateway
   when:
+    - agof_aap_token_is_usable | default(false) | bool
     - not (agof_aap_hub_token_is_usable | default(false) | bool)
     - automation_hub | default(false) | bool
   block:
@@ -133,12 +154,10 @@
     - hub_token | length > 0
     - agof_hub_token_source is not defined
 
-- name: Assert platform gateway token is available for config-as-code
-  ansible.builtin.assert:
-    that:
-      - agof_aap_token_is_usable | default(false) | bool
-      - aap_token is defined
-      - aap_token | length > 0
-    fail_msg: >-
-      No platform gateway OAuth token is available for config-as-code. Set aap_token_vault in ~/agof_vault.yml
-      or provide admin credentials so a token can be bootstrapped from /api/gateway/v1/tokens/.
+- name: Record existing config-as-code token auth mode for AAP 2.5
+  ansible.builtin.set_fact:
+    agof_aap_auth_mode: token
+    agof_aap_token_source: "{{ agof_aap_token_source | default('config-as-code') }}"
+  when:
+    - agof_aap_auth_mode is not defined
+    - agof_aap_token_is_usable | default(false) | bool

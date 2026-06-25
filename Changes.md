@@ -18,6 +18,10 @@
 * Note that AGOFv2 Also support AAP 2.6
 * Add a parameter to the openshift pre-init playbook to allow skipping the local vault load.
 
+## Update to v2 (June 2026)
+
+* Restore AAP 2.5 install and config-as-code path alongside 2.6 and 2.7.
+
 ## Update to v2 (May 2026)
 
 * Default AGOFv2 to AAP 2.6

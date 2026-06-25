@@ -16,13 +16,13 @@ redhat_password: 'Red Hat Subscription password, used to login to registry.redha
 
 admin_password: 'An admin password for AAP Controller and Automation Hub'
 
-# Platform gateway OAuth token for config-as-code (AAP 2.6 and 2.7). Preferred over password bootstrap.
+# Platform gateway OAuth token for config-as-code (optional on 2.5; preferred on 2.6 and 2.7).
 #aap_token_vault: 'Gateway OAuth token from Access > Tokens or POST /api/gateway/v1/tokens/'
 #hub_token_vault: 'Automation Hub API token when config repo defines hub resources'
 
-# AAP minor version to install and configure (2.6 or 2.7). Drives containerized installer download and collection pins.
-#containerized_installer_version: '2.6'
-#aap_version: '2.6'
+# AAP minor version to install and configure (2.5, 2.6, or 2.7). Drives containerized installer download and collection pins.
+#containerized_installer_version: '2.5'
+#aap_version: '2.5'
 
 # https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy
 manifest_content: "Content for a manifest file to entitle AAP Controller. See below for an example of how to point to a local file"

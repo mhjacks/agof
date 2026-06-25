@@ -1,6 +1,8 @@
-# Ansible Automation Platform {{ containerized_installer_version | default('2.7') }} containerized growth topology (all-in-one) inventory
+{# Target AAP minor release for version-specific inventory variables #}
+{% set _aap_ver = containerized_installer_version | default('2.7') %}
+# Ansible Automation Platform {{ _aap_ver }} containerized all-in-one inventory
 # This inventory expects to be run from the host where AAP will be installed.
-# Consult the AAP {{ containerized_installer_version | default('2.7') }} documentation for optional variables and hardware requirements.
+# Consult the AAP {{ _aap_ver }} documentation for optional variables and hardware requirements.
 
 # Platform gateway
 # -----------------------------------------------------
@@ -26,7 +28,7 @@
 {{ controller_fqdn }}
 {% endif %}
 
-{% if (containerized_installer_version | default('2.7')) is version('2.7', '>=') %}
+{% if _aap_ver is version('2.7', '>=') %}
 # Metrics service (required in AAP 2.7 when automation controller is installed)
 # -----------------------------------------------------
 [automationmetrics]
@@ -48,8 +50,10 @@ postgresql_admin_username={{ postgresql_admin_username }}
 postgresql_admin_password={{ postgresql_admin_password }}
 registry_username={{ registry_username }}
 registry_password={{ registry_password }}
+{% if _aap_ver is version('2.6', '>=') %}
 de_extra_images={{ de_extra_images | to_json }}
 ee_extra_images={{ ee_extra_images | to_json }}
+{% endif %}
 
 # Platform gateway
 # -----------------------------------------------------
@@ -62,7 +66,9 @@ gateway_pg_password={{ gateway_pg_password }}
 controller_admin_password={{ controller_admin_password }}
 controller_pg_host={{ controller_fqdn }}
 controller_pg_password={{ controller_pg_password }}
+{% if _aap_ver is version('2.7', '>=') %}
 controller_percent_memory_capacity={{ controller_percent_memory_capacity }}
+{% endif %}
 controller_postinstall={{ controller_postinstall | lower }}
 controller_license_file={{ controller_license_file }}
 controller_postinstall_dir={{ controller_postinstall_dir }}
@@ -75,7 +81,9 @@ controller_postinstall_repo_ref={{ controller_postinstall_repo_ref }}
 hub_admin_password={{ hub_admin_password }}
 hub_pg_host={{ controller_fqdn }}
 hub_pg_password={{ hub_pg_password }}
+{% if _aap_ver is version('2.7', '>=') %}
 hub_seed_collections={{ hub_seed_collections | lower }}
+{% endif %}
 hub_postinstall={{ hub_postinstall | lower }}
 hub_postinstall_dir={{ hub_postinstall_dir }}
 hub_postinstall_repo_url={{ hub_postinstall_repo_url }}
@@ -97,7 +105,7 @@ eda_workers={{ eda_workers }}
 eda_activation_workers={{ eda_activation_workers }}
 {% endif %}
 
-{% if (containerized_installer_version | default('2.7')) is version('2.7', '>=') %}
+{% if _aap_ver is version('2.7', '>=') %}
 # Metrics service
 # -----------------------------------------------------
 automationmetrics_pg_host={{ automationmetrics_pg_host }}

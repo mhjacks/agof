@@ -8,6 +8,9 @@ containerized_installer_user_home: '/home/{{ containerized_installer_user }}'
 containerized_installer_cleanup: true
 
 containerized_installer_version: "2.7"
+containerized_installer_async_timeout: "{{ 7200 if (containerized_installer_version | default('2.7')) is version('2.5', '==') else 3600 }}"
+containerized_installer_async_poll: 15
+containerized_installer_retry_on_failure: true
 containerized_installer_dest_dir: "{{ containerized_installer_user_home }}"
 
 controller_fqdn: "{{ ansible_facts.fqdn }}"

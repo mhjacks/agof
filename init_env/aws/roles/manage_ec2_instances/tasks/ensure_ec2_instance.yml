@@ -9,7 +9,7 @@
         key_name: "{{ ec2_name_prefix }}-key"
         security_groups:
           - "{{ inst.security_group_id | default(ec2_security_group) }}"
-        instance_type: "{{ inst.instance_type | default('m4.large') }}"
+        instance_type: "{{ inst.instance_type | default(agof_aap_instance_type | default('m5.2xlarge')) }}"
         image_id: "{{ inst.image_id | default(ami_id) }}"
         region: "{{ inst.region_id | default(ec2_region) }}"
         state: running

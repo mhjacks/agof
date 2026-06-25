@@ -17,4 +17,4 @@ ec2_instances:
       - tower
     ansible_extra_groups:
       - aap_controllers
-    instance_type: 'm4.xlarge'
+    instance_type: "{{ agof_aap_instance_type | default('m5.2xlarge') }}"

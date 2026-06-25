@@ -96,12 +96,45 @@
         - name: Reset SSH connection before async containerized installer
           ansible.builtin.meta: reset_connection
 
-    - name: Run containerized installer
-      ansible.builtin.command:
-        chdir: "{{ aap_installer_dir }}"
-        cmd: |-
-          ansible-playbook -i inventory ansible.containerized_installer.install
-      async: 3600
-      poll: 15
-      vars:
-        ansible_remote_tmp: "{{ containerized_installer_user_home }}/.ansible/tmp"
+    - name: Run containerized installer playbook
+      block:
+        - name: Run containerized installer
+          ansible.builtin.command:
+            chdir: "{{ aap_installer_dir }}"
+            cmd: |-
+              ansible-playbook -i inventory ansible.containerized_installer.install
+          async: "{{ containerized_installer_async_timeout }}"
+          poll: "{{ containerized_installer_async_poll }}"
+          vars:
+            ansible_remote_tmp: "{{ containerized_installer_user_home }}/.ansible/tmp"
+          register: containerized_installer_run
+
+      rescue:
+        - name: Retry containerized installer after partial or transient failure
+          when: containerized_installer_retry_on_failure | bool
+          block:
+            - name: Note containerized installer retry
+              ansible.builtin.debug:
+                msg: >-
+                  Containerized installer exited non-zero (common on AAP 2.5 when the
+                  controller API returns 503 while services finish starting). Retrying
+                  the installer playbook once from the existing install directory.
+
+            - name: Run containerized installer (retry)
+              ansible.builtin.command:
+                chdir: "{{ aap_installer_dir }}"
+                cmd: |-
+                  ansible-playbook -i inventory ansible.containerized_installer.install
+              async: "{{ containerized_installer_async_timeout }}"
+              poll: "{{ containerized_installer_async_poll }}"
+              vars:
+                ansible_remote_tmp: "{{ containerized_installer_user_home }}/.ansible/tmp"
+
+        - name: Fail when containerized installer retry is disabled
+          ansible.builtin.fail:
+            msg: >-
+              Containerized installer failed and containerized_installer_retry_on_failure
+              is false. Re-run containerized_install with force_aap_reconfigure=true or
+              manually run ansible-playbook -i inventory ansible.containerized_installer.install
+              in {{ aap_installer_dir }} on the AAP host.
+          when: not (containerized_installer_retry_on_failure | bool)

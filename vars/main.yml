@@ -32,3 +32,6 @@ aap_version: "{{ containerized_installer_version | default('2.7') }}"
 
 # Collection requirement file selected during preinit.
 agof_aap_requirements_file: "requirements-aap-{{ aap_version }}.yml"
+
+# EC2 instance type for the default AAP bootstrap node.
+agof_aap_instance_type: "m5.2xlarge"

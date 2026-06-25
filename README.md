@@ -399,6 +399,7 @@ The teardown play will terminate all VMs associated with a VPC and subnet, and r
 | containerized_installer_user | Unprivileged user to create to run AAP | true | `aap` | |
 | containerized_installer_user_home | Directory to install containerized AAP into | true | `/home/{{ containerized_installer_user }}` | |
 | containerized_installer_version | Minor version of AAP to install | false | "2.7" | Set to `2.5`, `2.6`, or `2.7`. Drives the containerized inventory template (2.7 adds the metrics service) and collection pins installed by `make preinit` |
+| agof_aap_instance_type | EC2 instance type for the AAP node | false | `m5.2xlarge` | Override in vault if needed |
 | aap_version | Target AAP release for config-as-code | false | `{{ containerized_installer_version }}` | Override when using `api_install` against an existing endpoint without running the containerized installer |
 | automation_hub | Boolean to indicate whether to install automation_hub | true | true | |
 | controller_percent_memory_capacity | Controller memory allocation fraction | false | `0.5` | Growth topology default from AAP 2.7 installer |

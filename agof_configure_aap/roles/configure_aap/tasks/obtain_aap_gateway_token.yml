@@ -1,0 +1,142 @@
+---
+- name: Evaluate whether current aap_token can be used for API authentication
+  ansible.builtin.set_fact:
+    agof_aap_token_is_usable: >-
+      {{
+        aap_token is defined
+        and (aap_token | string | trim | length > 0)
+        and not (aap_token is search('^\{\{'))
+      }}
+
+- name: Discard placeholder aap_token values from config-as-code var files
+  ansible.builtin.set_fact:
+    aap_token: ""
+  when: not (agof_aap_token_is_usable | bool)
+
+- name: Evaluate whether current hub_token can be used for API authentication
+  ansible.builtin.set_fact:
+    agof_aap_hub_token_is_usable: >-
+      {{
+        hub_token is defined
+        and (hub_token | string | trim | length > 0)
+        and not (hub_token is search('^\{\{'))
+      }}
+
+- name: Discard placeholder hub_token values from config-as-code var files
+  ansible.builtin.set_fact:
+    hub_token: ""
+  when: not (agof_aap_hub_token_is_usable | bool)
+
+- name: Resolve platform gateway OAuth token for config-as-code
+  ansible.builtin.set_fact:
+    aap_token: "{{ aap_token_vault }}"
+    agof_aap_token_is_usable: true
+  when:
+    - not (agof_aap_token_is_usable | default(false) | bool)
+    - aap_token_vault is defined
+    - aap_token_vault | length > 0
+  no_log: true
+
+- name: Resolve Automation Hub API token for config-as-code
+  ansible.builtin.set_fact:
+    hub_token: "{{ hub_token_vault }}"
+    agof_aap_hub_token_is_usable: true
+  when:
+    - not (agof_aap_hub_token_is_usable | default(false) | bool)
+    - hub_token_vault is defined
+    - hub_token_vault | length > 0
+  no_log: true
+
+- name: Bootstrap platform gateway OAuth token when not supplied in vault
+  when: not (agof_aap_token_is_usable | default(false) | bool)
+  block:
+    - name: Request OAuth token from platform gateway
+      ansible.builtin.uri:
+        url: "https://{{ aap_hostname }}/api/gateway/v1/tokens/"
+        method: POST
+        user: "{{ aap_username | default(admin_user | default('admin')) }}"
+        password: "{{ aap_password | default(admin_password) }}"
+        force_basic_auth: true
+        validate_certs: "{{ aap_validate_certs | bool }}"
+        body_format: json
+        body: {}
+        status_code: 201
+      register: agof_aap_gateway_token_response
+      no_log: true
+
+    - name: Set bootstrapped platform gateway OAuth token
+      ansible.builtin.set_fact:
+        aap_token: "{{ agof_aap_gateway_token_response.json.token }}"
+        agof_aap_gateway_token_revoke_url: "{{ agof_aap_gateway_token_response.json.url | default('') }}"
+        agof_aap_token_source: bootstrap
+        agof_aap_token_is_usable: true
+      no_log: true
+
+  rescue:
+    - name: Report platform gateway token failure
+      ansible.builtin.fail:
+        msg: >-
+          Failed to obtain a platform gateway OAuth token from
+          https://{{ aap_hostname }}/api/gateway/v1/tokens/.
+          AAP 2.6 and 2.7 use token authentication for config-as-code. Either set aap_token_vault in
+          ~/agof_vault.yml with a gateway OAuth token, or ensure admin_password (or aap_password) can bootstrap
+          one from the platform gateway URL. Also verify collection versions match your AAP release
+          (containerized_installer_version or aap_version 2.6/2.7, then re-run make preinit).
+
+- name: Record vault-provided platform gateway token source
+  ansible.builtin.set_fact:
+    agof_aap_token_source: vault
+  when:
+    - agof_aap_token_source is not defined
+    - aap_token is defined
+    - aap_token | length > 0
+
+- name: Bootstrap Automation Hub API token via platform gateway
+  when:
+    - not (agof_aap_hub_token_is_usable | default(false) | bool)
+    - automation_hub | default(false) | bool
+  block:
+    - name: Request Hub token through platform gateway
+      ansible.builtin.uri:
+        url: "https://{{ aap_hostname }}/api/galaxy/v3/auth/token/"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ aap_token }}"
+        validate_certs: "{{ aap_validate_certs | bool }}"
+        body_format: json
+        body: {}
+        status_code: [200, 201]
+      register: agof_hub_token_response
+      no_log: true
+
+    - name: Set bootstrapped Hub API token
+      ansible.builtin.set_fact:
+        hub_token: "{{ agof_hub_token_response.json.token }}"
+        agof_hub_token_source: bootstrap
+        agof_aap_hub_token_is_usable: true
+      no_log: true
+
+  rescue:
+    - name: Note Hub token was not obtained through platform gateway
+      ansible.builtin.debug:
+        msg: >-
+          Could not obtain an Automation Hub API token via platform gateway. Set hub_token_vault in
+          ~/agof_vault.yml if your config repo defines hub resources.
+
+- name: Record vault-provided Hub token source
+  ansible.builtin.set_fact:
+    agof_hub_token_source: vault
+  when:
+    - hub_token is defined
+    - hub_token | length > 0
+    - agof_hub_token_source is not defined
+
+- name: Assert platform gateway token is available for config-as-code
+  ansible.builtin.assert:
+    that:
+      - agof_aap_token_is_usable | default(false) | bool
+      - aap_token is defined
+      - aap_token | length > 0
+    fail_msg: >-
+      No platform gateway OAuth token is available for config-as-code. Set aap_token_vault in ~/agof_vault.yml
+      or provide admin credentials so a token can be bootstrapped from /api/gateway/v1/tokens/.

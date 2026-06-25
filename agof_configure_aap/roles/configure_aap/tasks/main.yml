@@ -1,4 +1,8 @@
 ---
+- name: Resolve target AAP version from vault overrides
+  ansible.builtin.set_fact:
+    aap_version: "{{ (aap_version | default(containerized_installer_version | default('2.7'))) | string }}"
+
 - name: Show AAP hostname
   ansible.builtin.debug:
     msg:
@@ -13,8 +17,8 @@
       - "agof_config_repo: {{ agof_config_repo }}"
       - "agof_config_repo_version: {{ agof_config_repo_version }}"
       - "Checked out to: {{ agof_controller_config_dir }}"
-      - "Git SHA before checkout: {{ git_checkout.before }}"
-      - "Git SHA after checkout: {{ git_checkout.after }}"
+      - "Git SHA before checkout: {{ git_checkout.before | default('n/a (new clone)') }}"
+      - "Git SHA after checkout: {{ git_checkout.after | default('unknown') }}"
 
 - name: Include vars from configs directory
   ansible.builtin.include_vars:
@@ -93,12 +97,23 @@
   until: license_controller is not failed
   retries: 5
 
+- name: Obtain platform gateway API tokens for config-as-code dispatch
+  ansible.builtin.include_tasks: obtain_aap_gateway_token.yml
+
+- name: Show AAP version and auth mode for config-as-code
+  ansible.builtin.debug:
+    msg:
+      - "aap_version: {{ aap_version }}"
+      - "aap_hostname: {{ aap_hostname }}"
+      - "config-as-code auth: token (source: {{ agof_aap_token_source | default('unknown') }})"
+      - "hub token: {{ 'yes (source: ' ~ agof_hub_token_source ~ ')' if hub_token is defined and hub_token | length > 0 else 'not set' }}"
+
 - name: Debug infra.controller_configuration.dispatch common variables
   ansible.builtin.debug:
     msg:
       - "aap_hostname: {{ aap_hostname }}"
       - "aap_validate_certs: {{ aap_validate_certs }}"
-      - "aap_username: {{ aap_username }}"
+      - "aap_token: (set, not logged)"
       - "aap_request_timeout: {{ aap_request_timeout }}"
       - "aap_configuration_async_dir: {{ aap_configuration_async_dir }}"
   when:
@@ -109,7 +124,7 @@
   ansible.builtin.include_role:
     name: agof_configure_aap/roles/pre_config_fixups
 
-- name: "Configure AAP - Version 2.5+"
+- name: "Configure AAP - Version 2.6+"
   block:
     - name: "Configure AAP"
       ansible.builtin.include_role:

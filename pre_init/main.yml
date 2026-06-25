@@ -6,8 +6,14 @@
   gather_facts: false
   vars_files:
     - "./vars/preinit_vars.yml"
+    - "../vars/main.yml"
     - "~/agof_vault.yml"
   tasks:
+    - name: Resolve target AAP version from vault overrides
+      ansible.builtin.set_fact:
+        aap_version: "{{ (aap_version | default(containerized_installer_version | default('2.7'))) | string }}"
+        agof_aap_requirements_file: "requirements-aap-{{ (aap_version | default(containerized_installer_version | default('2.7'))) | string }}.yml"
+
     - name: "Write ansible.cfg"
       ansible.builtin.template:
         src: ansible.cfg.j2
@@ -35,16 +41,39 @@
     - name: "Install collections for ansible environment {{ 'forcefully' if init_env_collection_install_force }}"
       when: init_env_collection_install
       block:
+        - name: Validate target AAP version for collection install
+          ansible.builtin.assert:
+            that:
+              - aap_version in agof_supported_aap_versions
+            fail_msg: >-
+              aap_version '{{ aap_version }}' is not supported. Set containerized_installer_version or
+              aap_version in ~/agof_vault.yml to one of {{ agof_supported_aap_versions | join(', ') }}.
+
+        - name: Show AAP collection requirement file
+          ansible.builtin.debug:
+            msg:
+              - "aap_version: {{ aap_version }}"
+              - "Installing collections from: {{ agof_aap_requirements_file }}"
+
         - name: "Install local patched files"
           ansible.builtin.command:
             cmd: "ansible-galaxy collection install {{ '--force' if init_env_collection_install_force }} -p '{{ ansible_cfg_patch_collection_dir }}' '{{ item }}'"
             chdir: ".."
           loop: '{{ special_collection_installs }}'
 
-        - name: "Install requirements file based collections {{ 'forcefully' if init_env_collection_install_force }}"
+        - name: "Install common requirements file collections {{ 'forcefully' if init_env_collection_install_force }}"
           ansible.builtin.command:
             cmd: |-
               ansible-galaxy collection install {{ '--force' if init_env_collection_install_force }} -p '{{ ansible_cfg_patch_collection_dir }}' -r requirements.yml
+            chdir: ".."
+          environment:
+            ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_CERTIFIED_TOKEN: "{{ automation_hub_token }}"
+            ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_VALIDATED_TOKEN: "{{ automation_hub_token }}"
+
+        - name: "Install AAP {{ aap_version }} collection pins {{ 'forcefully' if init_env_collection_install_force }}"
+          ansible.builtin.command:
+            cmd: |-
+              ansible-galaxy collection install {{ '--force' if init_env_collection_install_force }} -p '{{ ansible_cfg_patch_collection_dir }}' -r {{ agof_aap_requirements_file }}
             chdir: ".."
           environment:
             ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_CERTIFIED_TOKEN: "{{ automation_hub_token }}"

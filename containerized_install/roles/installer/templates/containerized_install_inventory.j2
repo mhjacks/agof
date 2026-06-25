@@ -1,6 +1,6 @@
-# Ansible Automation Platform 2.7 containerized growth topology (all-in-one) inventory
+# Ansible Automation Platform {{ containerized_installer_version | default('2.7') }} containerized growth topology (all-in-one) inventory
 # This inventory expects to be run from the host where AAP will be installed.
-# Consult the AAP 2.7 documentation for optional variables and hardware requirements.
+# Consult the AAP {{ containerized_installer_version | default('2.7') }} documentation for optional variables and hardware requirements.
 
 # Platform gateway
 # -----------------------------------------------------
@@ -26,10 +26,12 @@
 {{ controller_fqdn }}
 {% endif %}
 
+{% if (containerized_installer_version | default('2.7')) is version('2.7', '>=') %}
 # Metrics service (required in AAP 2.7 when automation controller is installed)
 # -----------------------------------------------------
 [automationmetrics]
 {{ controller_fqdn }}
+{% endif %}
 
 # Database
 # -----------------------------------------------------
@@ -95,9 +97,11 @@ eda_workers={{ eda_workers }}
 eda_activation_workers={{ eda_activation_workers }}
 {% endif %}
 
+{% if (containerized_installer_version | default('2.7')) is version('2.7', '>=') %}
 # Metrics service
 # -----------------------------------------------------
 automationmetrics_pg_host={{ automationmetrics_pg_host }}
 automationmetrics_pg_password={{ automationmetrics_pg_password }}
 automationmetrics_controller_read_pg_host={{ automationmetrics_controller_read_pg_host }}
 automationmetrics_controller_read_pg_password={{ automationmetrics_controller_read_pg_password }}
+{% endif %}

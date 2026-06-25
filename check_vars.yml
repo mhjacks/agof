@@ -76,6 +76,10 @@
         hint: "Set in ~/agof_vault.yml. Get it from https://console.redhat.com/ansible/automation-hub/token"
 
   tasks:
+    - name: Resolve target AAP version from vault overrides
+      ansible.builtin.set_fact:
+        aap_version: "{{ (aap_version | default(containerized_installer_version | default('2.7'))) | string }}"
+
     - name: "Check that vault file exists"
       ansible.builtin.stat:
         path: "~/agof_vault.yml"
@@ -182,6 +186,20 @@
       when:
         - admin_password is defined
         - admin_password == "ansible"
+
+    - name: "Check aap_version is supported"
+      ansible.builtin.set_fact:
+        _validation_errors: >-
+          {{ _validation_errors + [
+            {
+              'variable': 'aap_version',
+              'description': "aap_version must be one of {{ agof_supported_aap_versions | join(', ') }} (got '{{ aap_version }}')",
+              'hint': 'Set containerized_installer_version or aap_version in ~/agof_vault.yml, then re-run make preinit'
+            }
+          ] }}
+      when:
+        - aap_version is defined
+        - aap_version not in agof_supported_aap_versions
 
     # ---- Report results ----
     - name: "All variables validated successfully"

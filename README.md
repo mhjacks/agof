@@ -58,7 +58,7 @@ The thinking behind this effort is documented in the [Ansible Pattern Theory](ht
 
 ## 2. <a name='HowtoUseIt'></a>How to Use It
 
-The default installation will provide an AAP 2.7 installation deployed via the Containerized Installer, with the following services available on the AAP node (where `aapnode.fqdn` is the fully qualified domain name of your AAP host):
+The default installation will provide an AAP 2.6 or 2.7 installation (see `containerized_installer_version`) deployed via the Containerized Installer, with the following services available on the AAP node (where `aapnode.fqdn` is the fully qualified domain name of your AAP host):
 
 | URL Pattern | Service |
 |-------------|---------|
@@ -180,7 +180,9 @@ Additional VM targets (such as IdM and Satellite) can be defined using the `ec2_
 | Name | Description | Required | Default | Notes |
 | ------------------------- | ------------------------------------ | -------- | -------- | ------ |
 | admin_user | Admin User (for AAP and/or Hub) | false | 'admin' | |
-| admin_password | Admin Password (for AAP and/or Hub) | true | | |
+| admin_password | Admin Password (for AAP and/or Hub) | true | | Also used to bootstrap a gateway OAuth token for config-as-code when `aap_token_vault` is not set |
+| aap_token_vault | Platform gateway OAuth token for config-as-code | false | | Preferred auth for AAP 2.6 and 2.7. Create in the UI under Access > Tokens or via `POST /api/gateway/v1/tokens/` |
+| hub_token_vault | Automation Hub API token for config-as-code | false | | Optional; required only when your config repo defines Hub resources and bootstrap from gateway fails |
 | redhat_username | Red Hat Subscriber Username (for RHEL entitlement) | true | | |
 | redhat_password | Red Hat Subscriber Password (for RHEL entitlement) | true | | |
 | redhat_registry_username_vault | Red Hat Registry Username (for registry.redhat.io container images) | true | | |
@@ -196,9 +198,7 @@ Additional VM targets (such as IdM and Satellite) can be defined using the `ec2_
 
 ### 4.1.1. <a name='ConfigRepoAuthentication'></a>Config-as-code repository authentication (non-OpenShift)
 
-When running AGOF outside OpenShift Validated Patterns (`make install`, `make api_install`, and similar), the framework checks out your config-as-code repository from `agof_cac_repo` / `agof_iac_repo` on the provisioner host before calling `controller_configuration`. Public repositories need no extra settings. Private repositories support **HTTPS token/password** or **SSH key** authentication, plus optional HTTP(S) proxy settings.
-
-Set credentials in `~/agof_vault.yml`. Secrets are not written into play output when token/password authentication is used.
+When running AGOF outside OpenShift Validated Patterns (`make install`, `make api_install`, and similar), the framework checks out your config-as-code repository from `agof_cac_repo` / `agof_iac_repo` on the provisioner host before calling `controller_configuration`. **HTTPS URLs do not have credentials embedded in the URL unless you set one of the `agof_config_repo_https_*` variables below.** When those variables are not set, AGOF removes any existing `~/.git-credentials` file and clears the global git credential helper before checkout so public repositories clone anonymously. Private repositories require explicit vault variables or SSH.
 
 | Name | Description | Required | Default | Notes |
 | ------------------------- | ------------------------------------ | -------- | -------- | ------ |
@@ -302,7 +302,7 @@ agof_config_repo_https_proxy: "http://proxy.example.com:8080"
 agof_config_repo_no_proxy: "localhost,127.0.0.1,.example.com"
 ```
 
-Proxy variables are exported to the `git` process only during checkout. OpenShift Validated Patterns installs continue to source repository coordinates from Helm values (`agof.cac_repo` / `agof.cac_revision`, or legacy `agof.iac_repo` / `agof.iac_revision` in chart `values.yaml`) and are unchanged by these vault settings. Chart `aap-config` v0.3.0+ applies git credentials to both the AGOF and config-as-code repo hosts; SSH keys prepared by the chart init container under `~/.ssh/` are detected automatically during checkout.
+Proxy variables are exported to the `git` process only during checkout. OpenShift Validated Patterns installs source repository coordinates from Helm values. AGOF embeds HTTPS credentials only when `agof_config_repo_https_*` vault variables are set; otherwise chart init credential files are removed before the config-repo checkout. SSH config repos still use keys under `~/.ssh/` when configured.
 
 ### 4.2. <a name='InitializationEnvironmentConfiguration'></a>Initialization Environment Configuration
 
@@ -398,12 +398,13 @@ The teardown play will terminate all VMs associated with a VPC and subnet, and r
 | ------------------------- | ------------------------------------ | -------- | ------------------ | ------- |
 | containerized_installer_user | Unprivileged user to create to run AAP | true | `aap` | |
 | containerized_installer_user_home | Directory to install containerized AAP into | true | `/home/{{ containerized_installer_user }}` | |
-| containerized_installer_version | Minor version of AAP to install | false | "2.7" | Uses the AAP 2.7 containerized growth (all-in-one) inventory template |
+| containerized_installer_version | Minor version of AAP to install | false | "2.7" | Set to `2.6` or `2.7`. Drives the containerized growth inventory template (2.7 adds the metrics service) and collection pins installed by `make preinit` |
+| aap_version | Target AAP release for config-as-code | false | `{{ containerized_installer_version }}` | Override when using `api_install` against an existing endpoint without running the containerized installer |
 | automation_hub | Boolean to indicate whether to install automation_hub | true | true | |
 | controller_percent_memory_capacity | Controller memory allocation fraction | false | `0.5` | Growth topology default from AAP 2.7 installer |
 | hub_seed_collections | Seed hub with default collections | false | `false` | Growth topology default from AAP 2.7 installer |
-| automationmetrics_pg_password | Metrics service database password | false | `{{ db_password }}` | Required for AAP 2.7 when controller is installed |
-| automationmetrics_controller_read_pg_password | Metrics read-only controller DB password | false | `{{ db_password }}` | Required for AAP 2.7 when controller is installed |
+| automationmetrics_pg_password | Metrics service database password | false | `{{ db_password }}` | Required for AAP 2.7 when controller is installed (not used for 2.6) |
+| automationmetrics_controller_read_pg_password | Metrics read-only controller DB password | false | `{{ db_password }}` | Required for AAP 2.7 when controller is installed (not used for 2.6) |
 | postgresql_admin_username | Name of postgres admin for services | true | `postgres` | |
 | postgresql_admin_password | Password for the postgres user for services | true | `{{ db_password }}` | |
 | ee_extra_images | Specifications for extra execution environments to load | false | `[]` | |
@@ -430,7 +431,7 @@ The teardown play will terminate all VMs associated with a VPC and subnet, and r
 
 First, we run the [Installer Prereqs](containerized_install/roles/installer_prereqs/) role. On AWS deployments the `aap` user is usually already created during environment initialization; this role ensures required packages, passwordless sudo, SSH access, and linger are configured. The sudo rule simplifies the process of running the containerized installer, and by default is removed in the cleanup stage. This role also sets `linger` on the AAP user so that services will start at boot time under the AAP user.
 
-Next, we run the [Containerized Installer](containerized_install/roles/installer/) role. This runs the containerized installer as the designated user on a single-node growth topology suitable for AAP 2.7, including the required metrics service. This user *cannot* be root (because of how it uses and configures containerized services). This role downloads and executes the installer, and also places a [manifest file](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files) (designated by the `manifest_content` variable) as `manifest.zip` to entitle the controller. It runs the containerized installer.
+Next, we run the [Containerized Installer](containerized_install/roles/installer/) role. This runs the containerized installer as the designated user on a single-node growth topology suitable for AAP 2.6 or 2.7 (2.7 includes the required metrics service). This user *cannot* be root (because of how it uses and configures containerized services). This role downloads and executes the installer, and also places a [manifest file](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files) (designated by the `manifest_content` variable) as `manifest.zip` to entitle the controller. It runs the containerized installer.
 
 Finally, we run the [cleanup](containerized_install/roles/installer_cleanup/) role if it is enabled (which it is by default). This removed the sudo rule from the AAP user, and removes the manifest.zip file. The installation is now ready for you to use.
 

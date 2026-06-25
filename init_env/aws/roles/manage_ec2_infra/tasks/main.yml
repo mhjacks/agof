@@ -1,5 +1,5 @@
 ---
-- include_tasks: teardown.yml
+- ansible.builtin.include_tasks: teardown.yml
   when: teardown|bool
 
 - name: provision aws resources and instances

@@ -1,12 +1,7 @@
 ---
 collections:
 - infra.aap_configuration
-- ansible.platform
-- name: ansible.controller
-  version: '>4.6.0'
 - infra.aap_utilities
-- ansible.eda
-- ansible.hub
 - ansible.posix
 - ansible.utils
 - amazon.aws

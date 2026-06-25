@@ -25,6 +25,3 @@
 - name: Manage Route53 DNS entries
   ansible.builtin.include_tasks: ensure_route53.yml
   when: manage_public_dns
-  loop: '{{ ec2_instances_built }}'
-  loop_control:
-    loop_var: ec2_inst

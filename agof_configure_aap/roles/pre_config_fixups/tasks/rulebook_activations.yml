@@ -16,8 +16,7 @@
     - name: Retrieve existing rulebook activation configs
       ansible.eda.rulebook_activation_info:
         aap_hostname: "{{ aap_hostname }}"
-        aap_username: "{{ aap_username }}"
-        aap_password: "{{ admin_password }}"
+        aap_token: "{{ aap_token }}"
         aap_validate_certs: "{{ aap_validate_certs }}"
         aap_request_timeout: "{{ aap_request_timeout }}"
       register: rbas
@@ -35,8 +34,7 @@
     - name: Disable selected activations for management
       ansible.eda.rulebook_activation:
         aap_hostname: "{{ aap_hostname }}"
-        aap_username: "{{ aap_username }}"
-        aap_password: "{{ admin_password }}"
+        aap_token: "{{ aap_token }}"
         aap_validate_certs: "{{ aap_validate_certs }}"
         aap_request_timeout: "{{ aap_request_timeout }}"
         name: "{{ item }}"

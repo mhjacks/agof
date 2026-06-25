@@ -143,7 +143,9 @@
     route_table_id: "{{item.id}}"
     lookup: id
     state: absent
-  with_items: "{{route_table_facts.route_tables}}"
+  loop: "{{ route_table_facts.route_tables }}"
+  loop_control:
+    label: "{{ item.id | default('route-table') }}"
   when: item.associations == []
 
 - name: set keys for instance creation dynamically since key was not supplied by user

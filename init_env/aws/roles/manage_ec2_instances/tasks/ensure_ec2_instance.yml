@@ -4,10 +4,11 @@
     - name: 'provision {{ inst.name }} server'
       amazon.aws.ec2_instance:
         name: "{{ ec2_name_prefix }}-{{ inst.name }}"
-        network:
-          assign_public_ip: true
+        network_interfaces:
+          - assign_public_ip: true
         key_name: "{{ ec2_name_prefix }}-key"
-        security_group: "{{ inst.security_group_id | default(ec2_security_group) }}"
+        security_groups:
+          - "{{ inst.security_group_id | default(ec2_security_group) }}"
         instance_type: "{{ inst.instance_type | default('m4.large') }}"
         image_id: "{{ inst.image_id | default(ami_id) }}"
         region: "{{ inst.region_id | default(ec2_region) }}"

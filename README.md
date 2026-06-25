@@ -70,10 +70,11 @@ Automation Hub and EDA are enabled by default, but they can be turned off if des
 By default, the framework will apply license content specified by the `manifest_content` variable (see [obtaining a manifest file](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/installing_on_openshift_container_platform/assembly-gateway-licensing-operator-copy#assembly-aap-obtain-manifest-files)), but will not further configure Controller or Automation Hub beyond the defaults.
 
 From there, a minimal example pattern is available to download and run [here](https://github.com/validatedpatterns-demos/agof_minimal_config.git). To use this example, set the following variables in your `agof_vault.yml`.
-Any repo that can be used with the controller_configuration collection can be used as the `agof_iac_repo`.
+Any repo that can be used with the controller_configuration collection can be used as the config-as-code repo. Set `agof_cac_repo` (preferred) or the legacy `agof_iac_repo` name in your `agof_vault.yml`; when both are set, `agof_cac_repo*` takes precedence.
 
 ```yaml
-agof_iac_repo: "https://github.com/validatedpatterns-demos/agof_minimal_config.git"
+agof_cac_repo: "https://github.com/validatedpatterns-demos/agof_minimal_config.git"
+# agof_cac_repo_version: main   # optional; defaults to main
 ```
 
 ### 2.1. <a name='Installation'></a>Installation
@@ -190,8 +191,118 @@ Additional VM targets (such as IdM and Satellite) can be defined using the `ec2_
 | automation_hub_token_vault| Subscriber-specific token for Content | true | <https://console.redhat.com/ansible/automation-hub/token> |
 | automation_hub | Flag to build and enable Automation Hub | false | false | | Building a Private Automation Hub is necessary if your pattern builds an Execution Environment that is not hosted on a public container registry. |
 | eda | Flag to build and enable Event Driven Automation controller | false | true | | |
-| agof_controller_config_dir | Directory to pass to controller_configuration | false | | This directory is the key one to load all other AAP Controller configuration. The framework will populate it by checking out the `agof_iac_repo` version `agof_iac_repo_version` (default: `main`) |
+| agof_controller_config_dir | Directory to pass to controller_configuration | false | | This directory is the key one to load all other AAP Controller configuration. The framework will populate it by checking out `agof_cac_repo` (or legacy `agof_iac_repo`) at `agof_cac_repo_version` / `agof_iac_repo_version` (default: `main`) |
 | controller_launch_jobs | List of jobs to run after controller_configuration has run | false | | Use this to start a job (or jobs) that do not have aggressive schedules, and that are ready to run as soon as the controller is configured. The fewer jobs listed here the better. |
+
+### 4.1.1. <a name='ConfigRepoAuthentication'></a>Config-as-code repository authentication (non-OpenShift)
+
+When running AGOF outside OpenShift Validated Patterns (`make install`, `make api_install`, and similar), the framework checks out your config-as-code repository from `agof_cac_repo` / `agof_iac_repo` on the provisioner host before calling `controller_configuration`. Public repositories need no extra settings. Private repositories support **HTTPS token/password** or **SSH key** authentication, plus optional HTTP(S) proxy settings.
+
+Set credentials in `~/agof_vault.yml`. Secrets are not written into play output when token/password authentication is used.
+
+| Name | Description | Required | Default | Notes |
+| ------------------------- | ------------------------------------ | -------- | -------- | ------ |
+| agof_cac_repo / agof_iac_repo | Git repository URL | true | | Use `https://...` or `git@host:org/repo.git` / `ssh://...` forms |
+| agof_cac_repo_version / agof_iac_repo_version | Branch, tag, or commit | false | `main` | Passed to `git` as `version` |
+| agof_config_repo_https_token_vault | HTTPS token (PAT, deploy token, etc.) | false | | Preferred HTTPS secret; stored in vault |
+| agof_config_repo_https_password_vault | HTTPS password | false | | Alternative to token for basic auth |
+| agof_config_repo_https_username | HTTPS username | false | auto | Auto: `x-access-token` (GitHub), `oauth2` (GitLab), `git` (others) when omitted |
+| agof_config_repo_ssh_private_key_vault | SSH private key PEM/OpenSSH content | false | | Written to `~/.agof/config-repo/id_ed25519` (mode `0600`) for the checkout |
+| agof_config_repo_ssh_private_key_file | Path to an existing SSH private key | false | | Use instead of `*_vault` when the key is already on disk |
+| agof_config_repo_ssh_accept_hostkey | Accept unknown SSH host keys | false | `false` | Set `true` for lab use; prefer `agof_config_repo_ssh_known_host` in production |
+| agof_config_repo_ssh_known_host | Pin server host key | false | | Dict with `name` and `key` (see examples); uses a dedicated `known_hosts` file |
+| agof_config_repo_ssh_extra_opts | Extra `ssh` options | false | | Example: `-p 2222` for non-standard SSH ports |
+| agof_config_repo_http_proxy | HTTP proxy URL | false | | Applied as `http_proxy`, `HTTP_PROXY`, and `GIT_HTTP_PROXY` when set |
+| agof_config_repo_https_proxy | HTTPS proxy URL | false | | Applied as `https_proxy`, `HTTPS_PROXY`, and `GIT_HTTPS_PROXY` when set |
+| agof_config_repo_no_proxy | Bypass list for proxies | false | | Applied as `NO_PROXY` / `no_proxy` |
+| agof_config_repo_all_proxy | SOCKS or catch-all proxy | false | | Applied as `ALL_PROXY` when set |
+
+#### GitHub (HTTPS + fine-grained or classic PAT)
+
+```yaml
+agof_cac_repo: "https://github.com/my-org/my-pattern-config.git"
+agof_cac_repo_version: main
+agof_config_repo_https_token_vault: "ghp_xxxxxxxxxxxxxxxxxxxx"
+# username defaults to x-access-token; override if needed:
+# agof_config_repo_https_username: x-access-token
+```
+
+#### GitHub (SSH deploy key)
+
+```yaml
+agof_cac_repo: "git@github.com:my-org/my-pattern-config.git"
+agof_cac_repo_version: main
+agof_config_repo_ssh_private_key_vault: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  ...
+  -----END OPENSSH PRIVATE KEY-----
+agof_config_repo_ssh_known_host:
+  name: github.com
+  key: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."
+# obtain the key line with: ssh-keyscan -t ed25519 github.com
+```
+
+#### GitLab (HTTPS + project/group access token)
+
+```yaml
+agof_cac_repo: "https://gitlab.com/my-group/my-pattern-config.git"
+agof_cac_repo_version: main
+agof_config_repo_https_token_vault: "glpat-xxxxxxxxxxxxxxxxxxxx"
+# username defaults to oauth2 for gitlab.com hostnames
+```
+
+Self-managed GitLab:
+
+```yaml
+agof_cac_repo: "https://gitlab.example.com/my-group/my-pattern-config.git"
+agof_cac_repo_version: main
+agof_config_repo_https_token_vault: "glpat-xxxxxxxxxxxxxxxxxxxx"
+agof_config_repo_https_username: oauth2
+```
+
+#### GitLab (SSH)
+
+```yaml
+agof_cac_repo: "git@gitlab.com:my-group/my-pattern-config.git"
+agof_cac_repo_version: main
+agof_config_repo_ssh_private_key_file: "~/.ssh/gitlab_agof_config"
+agof_config_repo_ssh_accept_hostkey: true
+```
+
+#### Forgejo / Gitea (HTTPS + access token)
+
+```yaml
+agof_cac_repo: "https://forgejo.example.com/my-org/my-pattern-config.git"
+agof_cac_repo_version: main
+agof_config_repo_https_username: "my-gitea-user"
+agof_config_repo_https_token_vault: "0123456789abcdef0123456789abcdef01234567"
+```
+
+Gitea/Forgejo deploy tokens often use the token as the password with a fixed username; some instances expect the token alone as username with an empty password — set `agof_config_repo_https_username` and `agof_config_repo_https_password_vault` accordingly.
+
+#### Forgejo / Gitea (SSH)
+
+```yaml
+agof_cac_repo: "git@forgejo.example.com:my-org/my-pattern-config.git"
+agof_cac_repo_version: main
+agof_config_repo_ssh_private_key_vault: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  ...
+  -----END OPENSSH PRIVATE KEY-----
+agof_config_repo_ssh_known_host:
+  name: forgejo.example.com
+  key: "forgejo.example.com ssh-ed25519 AAAA..."
+```
+
+#### HTTP(S) proxy
+
+```yaml
+agof_config_repo_http_proxy: "http://proxy.example.com:8080"
+agof_config_repo_https_proxy: "http://proxy.example.com:8080"
+agof_config_repo_no_proxy: "localhost,127.0.0.1,.example.com"
+```
+
+Proxy variables are exported to the `git` process only during checkout. OpenShift Validated Patterns installs continue to source repository coordinates from Helm values (`agof.cac_repo` / `agof.cac_revision`, or legacy `agof.iac_repo` / `agof.iac_revision` in chart `values.yaml`) and are unchanged by these vault settings. Chart `aap-config` v0.3.0+ applies git credentials to both the AGOF and config-as-code repo hosts; SSH keys prepared by the chart init container under `~/.ssh/` are detected automatically during checkout.
 
 ### 4.2. <a name='InitializationEnvironmentConfiguration'></a>Initialization Environment Configuration
 
@@ -353,8 +464,10 @@ Because the AGOF runner needs predictability for the existence of the manifest f
 - `admin_user`: Hardcoded to `admin` currently.
 - `admin_password`: Has the value of the password randomly generated by the AAP Operator installation
 - `aap_hostname`: The endpoint of the AAP instance, as discovered by looking for its route in the ansible-automation-platform namespace
-- `agof_iac_repo`: Set by retrieving it from the helm values, so that it overrides what may be in your local `agof_vault.yml` file.
-- `agof_iac_repo_version`: Set by retrieving it from the Helm chart, as above.
+- `agof_cac_repo` / `agof_iac_repo`: Set from Helm values (`cac_repo` preferred over legacy `iac_repo`), overriding what may be in your local `agof_vault.yml` file.
+- `agof_cac_repo_version` / `agof_iac_repo_version`: Set from Helm values (`cac_revision` preferred over legacy `iac_revision`), as above.
+
+Use `aap-config` chart **v0.3.0** or later with a compatible AGOF revision when adopting `cac_*` Helm values or SSH config repo URLs with `gitAuthSecret`.
 - `controller_license_src_file`: Set by creating a temporary file from the manifest file secret
 - `secrets`: Special data structure that contains other elements discovered from OpenShift.
 - `helm_values`: All of the helm values available to the application.

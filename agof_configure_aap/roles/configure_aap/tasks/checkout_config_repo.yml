@@ -1,0 +1,167 @@
+---
+- name: Look for existing SSH private keys (e.g. OpenShift VP init container)
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ agof_config_repo_ssh_identity_candidates }}"
+  register: agof_config_repo_ssh_identity_stat
+  when: agof_config_repo is match('^(git@|ssh://)')
+
+- name: Select existing SSH private key for config repo checkout
+  ansible.builtin.set_fact:
+    agof_config_repo_ssh_key_file_from_home: "{{ item.item }}"
+  loop: "{{ agof_config_repo_ssh_identity_stat.results | default([]) }}"
+  when:
+    - item.stat is defined
+    - item.stat.exists
+    - item.stat.isreg
+    - agof_config_repo_ssh_key_file_from_home is not defined
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Look for SSH known_hosts prepared by OpenShift VP init
+  ansible.builtin.stat:
+    path: "{{ agof_config_repo_home_known_hosts_path }}"
+  register: agof_config_repo_home_known_hosts
+  when:
+    - agof_config_repo is match('^(git@|ssh://)')
+    - agof_config_repo_ssh_known_host is not defined
+
+- name: Assert SSH credentials are configured for SSH config repo URLs
+  ansible.builtin.assert:
+    that:
+      - agof_config_repo is defined
+      - agof_config_repo | length > 0
+      - >-
+        not (agof_config_repo is match('^(git@|ssh://)'))
+        or (agof_config_repo_ssh_private_key_vault is defined and agof_config_repo_ssh_private_key_vault | length > 0)
+        or (agof_config_repo_ssh_private_key_file | default('') | length > 0)
+        or (agof_config_repo_ssh_key_file_from_home | default('') | length > 0)
+    fail_msg: >-
+      agof_config_repo uses SSH ({{ agof_config_repo | default('undefined') }}) but no SSH private key was supplied.
+      Set agof_config_repo_ssh_private_key_vault or agof_config_repo_ssh_private_key_file in ~/agof_vault.yml,
+      configure agof.gitAuthSecret in the aap-config chart, or place a key at ~/.ssh/id_ed25519 or ~/.ssh/id_rsa.
+      See README section 4.1.1 (Config-as-code repository authentication).
+
+- name: Resolve config repo HTTPS credentials
+  ansible.builtin.set_fact:
+    agof_config_repo_https_token: "{{ agof_config_repo_https_token_vault | default(agof_config_repo_https_token | default('')) }}"
+    agof_config_repo_https_secret: >-
+      {{
+        agof_config_repo_https_token_vault
+        | default(agof_config_repo_https_token)
+        | default(agof_config_repo_https_password_vault)
+        | default(agof_config_repo_https_password)
+        | default('')
+      }}
+    agof_config_repo_https_username_effective: >-
+      {%- if agof_config_repo_https_username | default('') | length > 0 -%}
+      {{ agof_config_repo_https_username }}
+      {%- elif 'github.com' in agof_config_repo -%}
+      x-access-token
+      {%- elif 'gitlab' in agof_config_repo -%}
+      oauth2
+      {%- else -%}
+      git
+      {%- endif -%}
+  no_log: true
+
+- name: Build authenticated HTTPS config repo URL
+  ansible.builtin.set_fact:
+    agof_config_repo_checkout_url: >-
+      https://{{ agof_config_repo_https_username_effective | urlencode }}:{{
+        agof_config_repo_https_secret | urlencode
+      }}@{{ agof_config_repo | regex_replace('^https?://', '') }}
+  when:
+    - agof_config_repo is match('^https?://')
+    - agof_config_repo_https_secret | length > 0
+  no_log: true
+
+- name: Use plain config repo URL when HTTPS credentials are not configured
+  ansible.builtin.set_fact:
+    agof_config_repo_checkout_url: "{{ agof_config_repo }}"
+  when: agof_config_repo_checkout_url is not defined
+
+- name: Ensure config repo credentials directory exists
+  ansible.builtin.file:
+    path: "{{ agof_config_repo_credentials_dir }}"
+    state: directory
+    mode: "0700"
+  when:
+    - agof_config_repo_ssh_private_key_vault is defined
+    - agof_config_repo_ssh_private_key_vault | length > 0
+
+- name: Install SSH private key for config repo checkout
+  ansible.builtin.copy:
+    content: "{{ agof_config_repo_ssh_private_key_vault }}"
+    dest: "{{ agof_config_repo_credentials_dir }}/id_ed25519"
+    mode: "0600"
+  when:
+    - agof_config_repo_ssh_private_key_vault is defined
+    - agof_config_repo_ssh_private_key_vault | length > 0
+  no_log: true
+
+- name: Resolve SSH private key path for config repo checkout
+  ansible.builtin.set_fact:
+    agof_config_repo_ssh_key_file_effective: >-
+      {{
+        agof_config_repo_ssh_private_key_file
+        if (agof_config_repo_ssh_private_key_file | default('') | length > 0)
+        else (
+          agof_config_repo_credentials_dir ~ '/id_ed25519'
+          if (agof_config_repo_ssh_private_key_vault is defined and agof_config_repo_ssh_private_key_vault | length > 0)
+          else agof_config_repo_ssh_key_file_from_home | default('')
+        )
+      }}
+  when:
+    - agof_config_repo is match('^(git@|ssh://)')
+      or (agof_config_repo_ssh_private_key_vault is defined and agof_config_repo_ssh_private_key_vault | length > 0)
+      or (agof_config_repo_ssh_private_key_file | default('') | length > 0)
+      or (agof_config_repo_ssh_key_file_from_home | default('') | length > 0)
+
+- name: Install SSH known_hosts entry for config repo host
+  ansible.builtin.known_hosts:
+    path: "{{ agof_config_repo_credentials_dir }}/known_hosts"
+    name: "{{ agof_config_repo_ssh_known_host.name }}"
+    key: "{{ agof_config_repo_ssh_known_host.key }}"
+  when: agof_config_repo_ssh_known_host is defined
+
+- name: Build SSH options for config repo checkout
+  ansible.builtin.set_fact:
+    agof_config_repo_ssh_opts_effective: >-
+      {{
+        (
+          ['-o UserKnownHostsFile=' ~ agof_config_repo_credentials_dir ~ '/known_hosts']
+          if agof_config_repo_ssh_known_host is defined
+          else (
+            ['-o UserKnownHostsFile=' ~ agof_config_repo_home_known_hosts_path, '-o StrictHostKeyChecking=yes']
+            if agof_config_repo_home_known_hosts.stat.exists | default(false)
+            else []
+          )
+        )
+        + (
+          [agof_config_repo_ssh_extra_opts]
+          if (agof_config_repo_ssh_extra_opts | default('') | length > 0)
+          else []
+        )
+      | join(' ')
+      }}
+  when:
+    - agof_config_repo_ssh_known_host is defined
+      or (agof_config_repo_home_known_hosts.stat.exists | default(false))
+      or (agof_config_repo_ssh_extra_opts | default('') | length > 0)
+
+- name: Checkout infrastructure-as-code directory
+  ansible.builtin.git:
+    repo: "{{ agof_config_repo_checkout_url }}"
+    version: "{{ agof_config_repo_version }}"
+    dest: "{{ agof_controller_config_dir }}"
+    force: true
+    clone: true
+    update: true
+    recursive: true
+    key_file: "{{ agof_config_repo_ssh_key_file_effective | default(omit) }}"
+    accept_hostkey: "{{ agof_config_repo_ssh_accept_hostkey | bool }}"
+    ssh_opts: "{{ agof_config_repo_ssh_opts_effective | default(omit) }}"
+  environment: "{{ agof_config_repo_git_environment | default({}) }}"
+  register: git_checkout
+  no_log: "{{ agof_config_repo_https_secret | default('') | length > 0 }}"

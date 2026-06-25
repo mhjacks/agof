@@ -4,22 +4,14 @@
     msg:
       - "aap_hostname: {{ aap_hostname }}"
 
-- name: "Checkout infrastructure-as-code directory"
-  ansible.builtin.git:
-    repo: "{{ agof_iac_repo }}"
-    version: "{{ agof_iac_repo_version | default('main') }}"
-    dest: "{{ agof_controller_config_dir }}"
-    force: true
-    clone: true
-    update: true
-    recursive: true
-  register: git_checkout
+- name: "Checkout config-as-code repository"
+  ansible.builtin.include_tasks: checkout_config_repo.yml
 
 - name: Show Git coordinates
   ansible.builtin.debug:
     msg:
-      - "agof_iac_repo: {{ agof_iac_repo }}"
-      - "agof_iac_repo_version: {{ agof_iac_repo_version | default('main') }}"
+      - "agof_config_repo: {{ agof_config_repo }}"
+      - "agof_config_repo_version: {{ agof_config_repo_version }}"
       - "Checked out to: {{ agof_controller_config_dir }}"
       - "Git SHA before checkout: {{ git_checkout.before }}"
       - "Git SHA after checkout: {{ git_checkout.after }}"

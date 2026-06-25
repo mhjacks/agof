@@ -11,8 +11,10 @@ aap_password: "{{ admin_password }}"
 aap_hostname: "{{ ansible_host }}"
 aap_validate_certs: false
 
-agof_iac_repo: "{{ agof_iac_repo }}"
-agof_iac_repo_version: "{{ agof_iac_repo_version }}"
+agof_cac_repo: "{{ agof_cac_repo | default(agof_iac_repo) }}"
+agof_cac_repo_version: "{{ agof_cac_repo_version | default(agof_iac_repo_version | default('main')) }}"
+agof_iac_repo: "{{ agof_cac_repo | default(agof_iac_repo) }}"
+agof_iac_repo_version: "{{ agof_cac_repo_version | default(agof_iac_repo_version | default('main')) }}"
 
 automation_hub_token_vault: "{{ automation_hub_token_vault }}"
 

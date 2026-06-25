@@ -16,3 +16,44 @@ aap_configuration_async_dir: /tmp/.ansible_async
 aap_validate_certs: false
 
 perform_pre_config_fixups: true
+
+agof_config_repo: "{{ agof_cac_repo | default(agof_iac_repo) }}"
+agof_config_repo_version: "{{ agof_cac_repo_version | default(agof_iac_repo_version | default('main')) }}"
+
+agof_config_repo_credentials_dir: "{{ '~/.agof/config-repo' | expanduser }}"
+agof_config_repo_home_known_hosts_path: "{{ '~/.ssh/known_hosts' | expanduser }}"
+agof_config_repo_ssh_identity_candidates:
+  - "{{ '~/.ssh/id_ed25519' | expanduser }}"
+  - "{{ '~/.ssh/id_rsa' | expanduser }}"
+
+# HTTPS authentication (non-OpenShift installs)
+agof_config_repo_https_username: ""
+agof_config_repo_ssh_accept_hostkey: false
+agof_config_repo_ssh_extra_opts: ""
+
+# Proxy settings for git checkout (also applied as http(s)_proxy / GIT_* env vars)
+agof_config_repo_http_proxy: ""
+agof_config_repo_https_proxy: ""
+agof_config_repo_no_proxy: ""
+agof_config_repo_all_proxy: ""
+agof_config_repo_git_http_proxy: "{{ agof_config_repo_http_proxy }}"
+agof_config_repo_git_https_proxy: "{{ agof_config_repo_https_proxy }}"
+
+agof_config_repo_git_environment: >-
+  {{
+    {
+      'http_proxy': agof_config_repo_http_proxy,
+      'https_proxy': agof_config_repo_https_proxy,
+      'HTTP_PROXY': agof_config_repo_http_proxy,
+      'HTTPS_PROXY': agof_config_repo_https_proxy,
+      'NO_PROXY': agof_config_repo_no_proxy,
+      'no_proxy': agof_config_repo_no_proxy,
+      'ALL_PROXY': agof_config_repo_all_proxy,
+      'GIT_HTTP_PROXY': agof_config_repo_git_http_proxy,
+      'GIT_HTTPS_PROXY': agof_config_repo_git_https_proxy,
+    }
+    | dict2items
+    | selectattr('value', 'defined')
+    | selectattr('value', 'ne', '')
+    | items2dict
+  }}

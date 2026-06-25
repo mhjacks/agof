@@ -3,7 +3,6 @@ aws_account_nbr_vault: 'Your AWS account number'
 aws_access_key_vault: 'Your AWS access key'
 aws_secret_key_vault: 'Your AWS secret key'
 
-pattern_prefix: 'A name to distinguish this pattern from other patterns installed on the same infrastructure'
 pattern_dns_zone: 'A public DNS zone managed by AWS Route53'
 
 ec2_name_prefix: 'A unique prefix to distinguish instances in AWS. Used as the pattern name and in public DNS entries'

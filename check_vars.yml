@@ -34,10 +34,6 @@
         description: "AWS region (e.g. us-east-1)"
         hint: "Set in ~/agof_vault.yml. Pick a region your account has access to. See agof_vault_template.yml for reference"
 
-      - name: pattern_prefix
-        description: "A name to distinguish this pattern from others on the same infrastructure"
-        hint: "Set in ~/agof_vault.yml. See agof_vault_template.yml for reference"
-
       - name: pattern_dns_zone
         description: "A public DNS zone managed by AWS Route53"
         hint: "Set in ~/agof_vault.yml. Must be a Route53 hosted zone in your AWS account"

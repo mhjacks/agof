@@ -115,7 +115,6 @@
     - "~/agof_vault.yml"
   vars:
     ec2_instances_built: "{{ hostvars['localhost']['ec2_instances_built'] }}"
-    ipaclient_configure_dns_resolver: false
     ansible_remote_tmp: "/home/{{ ansible_user | default('ec2-user') }}/.ansible/tmp"
   tasks:
     - name: "Ensure remote tmp directory"
@@ -164,6 +163,7 @@
     - name: Register and prepare RHEL nodes for AAP install
       ansible.builtin.include_role:
         name: roles/bootstrap_rhel_node
+      when: agof_bootstrap_node | default(true) | bool
 
 - name: Switch controller hosts to AAP installer SSH user
   hosts: aap_controllers

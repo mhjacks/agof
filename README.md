@@ -222,7 +222,16 @@ Additional VM targets (such as IdM and Satellite) can be defined using the `ec2_
 | ec2_region | EC2 region to use for builds | false | | Any region where Red Hat publishes RHEL marketplace AMIs |
 | ec2_name_prefix | Text to add for EC2 | false | | This is a name to disambiguate your pattern from anything else that might be running in your AWS account. A VPC, subnet, and security group is built from this, and the prefix is added to the `pattern_dns_zone` by default. Additionally, the SSH private key is stored locally in `~/{{ ec2_name_prefix }}`. |
 | pattern_dns_zone | Zone to use for route53 updates | false | | Definitely set this if doing DNS updates |
-| ec2_instances_xtra | Dictionary of additional ec2_instances to build | false | | Build additional VMs as part of the pattern |
+| ec2_instances_xtra | Dictionary of additional ec2_instances to build | false | | Merge into the default `ec2_instances` list. Each entry supports `image_id` (custom AMI), `bootstrap: false` (provision only, skip RHSM and aap user prep), `username`, `instance_type`, and `ansible_extra_groups`. |
+
+Per-instance keys on any `ec2_instances` entry (including extras merged via `ec2_instances_xtra`):
+
+| Name | Description | Required | Default | Notes |
+| ------------------------- | ------------------------------------ | -------- | ------------------ | ------ |
+| image_id | AWS AMI for this instance | false | `rhel_ami_id` | Use a custom AMI; otherwise the looked-up or pinned default RHEL AMI is used |
+| bootstrap | Run RHSM registration and aap user prep | false | `true` | Set `false` for pre-built AMIs that should be left unchanged after EC2 launch |
+| username | SSH user for Ansible | false | `ec2-user` | Must match the user configured in the AMI |
+| ansible_extra_groups | Inventory groups beyond `aws_nodes` | false | `[]` | e.g. `aap_controllers` for the AAP node |
 
 ### 4.5. <a name='RHEL-BootstrapConfiguration'></a>RHEL Bootstrap Configuration
 

@@ -4,23 +4,17 @@ teardown: false
 ec2_wait: true
 ebs_optimized_capable: false
 
-eda: false
-automation_hub: false
-
 ec2_instances:
   - name: aap
     # region_id:
     # security_group_id:
     # vpc_subnet_id:
-    # image_id:
-    # filter:
-    # username:
-    # disk_type:
+    # image_id:       # optional; defaults to rhel_ami_id from lookup or rhel_ami_id_vault
+    # bootstrap: true # optional; set false to skip RHSM registration and aap user prep
+    # username:       # optional; defaults to ec2-user
     host_aliases:
       - aap
       - tower
     ansible_extra_groups:
       - aap_controllers
     instance_type: 'm4.xlarge'
-
-containerized_install: true

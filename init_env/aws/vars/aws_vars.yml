@@ -6,7 +6,4 @@ pattern_state_rootdir: "{{ '~' | expanduser }}"
 
 manage_public_dns: true
 
-timeserver1: "0.pool.ntp.org"
-timeserver2: "1.pool.ntp.org"
-
 save_aws_vars: true

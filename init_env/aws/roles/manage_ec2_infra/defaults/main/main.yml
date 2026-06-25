@@ -6,8 +6,4 @@ ec2_wait: true
 ec2_az: "{{ ec2_region }}a"
 ec2_subnet: "172.20.0.0/16"
 ssh_port: 22
-create_cluster: false
 debug_teardown: false
-
-# Issue #1594
-ansible_async_dir: "/tmp/.ansible_async"

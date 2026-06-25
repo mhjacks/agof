@@ -18,24 +18,15 @@
     hostname: '{{ inst.name }}'
     ansible_ssh_host: '{{ item.public_dns_name }}'
     ansible_ssh_private_key_file: '{{ pattern_state_rootdir }}/{{ ec2_name_prefix }}/{{ ec2_name_prefix }}-private.pem'
-    ansible_user: '{{ aws_ansible_user | default("ec2-user") }}'
-    ansible_remote_tmp: "/home/{{ aws_ansible_user | default('ec2-user') }}/.ansible/tmp"
+    ansible_user: '{{ inst.username | default(aws_ansible_user | default("ec2-user")) }}'
+    ansible_remote_tmp: "/home/{{ inst.username | default(aws_ansible_user | default('ec2-user')) }}/.ansible/tmp"
+    agof_bootstrap_node: "{{ inst.bootstrap | default(true) | bool }}"
     aliases: '{{ inst.host_aliases | default([]) }}'
     short_hostname: '{{ inst.name }}'
     fqdn: '{{ inst.name }}.{{ pattern_domain }}'
   loop: '{{ instance_info.instances }}'
   loop_control:
     label: "{{ item.public_dns_name }} fqdn: {{ inst.name }}.{{ pattern_domain }} groups: {{ [ 'aws_nodes' ] + (inst.ansible_extra_groups | default([])) }}"
-
-- name: Special handling for Satellite instance if provided
-  ansible.builtin.set_fact:
-    sat_instance: '{{ instance_info.instances | first }}'
-  when: inst.name == 'sat'
-
-- name: Special handling for IDM instance if provided
-  ansible.builtin.set_fact:
-    idm_instance: '{{ instance_info.instances | first }}'
-  when: inst.name == 'idm'
 
 - name: Save facts for later
   ansible.builtin.set_fact:

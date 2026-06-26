@@ -208,10 +208,27 @@ When running AGOF outside OpenShift Validated Patterns (`make install`, `make ap
 | agof_config_repo_https_password_vault | HTTPS password | false | | Alternative to token for basic auth |
 | agof_config_repo_https_username | HTTPS username | false | auto | Auto: `x-access-token` (GitHub), `oauth2` (GitLab), `git` (others) when omitted |
 | agof_config_repo_ssh_private_key_vault | SSH private key PEM/OpenSSH content | false | | Written to `~/.agof/config-repo/id_ed25519` (mode `0600`) for the checkout |
-| agof_config_repo_ssh_private_key_file | Path to an existing SSH private key | false | | Use instead of `*_vault` when the key is already on disk |
-| agof_config_repo_ssh_accept_hostkey | Accept unknown SSH host keys | false | `false` | Set `true` for lab use; prefer `agof_config_repo_ssh_known_host` in production |
-| agof_config_repo_ssh_known_host | Pin server host key | false | | Dict with `name` and `key` (see examples); uses a dedicated `known_hosts` file |
-| agof_config_repo_ssh_extra_opts | Extra `ssh` options | false | | Example: `-p 2222` for non-standard SSH ports |
+| agof_config_repo_ssh_private_key_file | Path to an existing SSH private key | false | | Use instead of `*_vault` when the key is already on disk; `~/.ssh/id_ed25519` and `~/.ssh/id_rsa` are also detected automatically |
+| agof_config_repo_ssh_known_host | Pin Git server host key | false | | Dict with `name` and `key` (see examples); written to `~/.agof/config-repo/known_hosts` for checkout |
+| agof_config_repo_ssh_accept_hostkey | Force acceptance of unknown SSH host keys | false | `false` | Optional override; when neither `agof_config_repo_ssh_known_host` nor `~/.ssh/known_hosts` is available, host key checking is already disabled for checkout |
+| agof_config_repo_ssh_extra_opts | Extra `ssh` options | false | | Example: `-p 2222` for non-standard SSH ports; appended to the options AGOF selects for host key verification |
+
+#### SSH host key verification (`known_hosts`)
+
+For `git@...` and `ssh://...` config repo URLs, AGOF chooses SSH host key handling in this order:
+
+1. **`agof_config_repo_ssh_known_host` set** — AGOF writes the pinned entry to `~/.agof/config-repo/known_hosts` and uses that file with strict checking (`StrictHostKeyChecking=yes` implied by a dedicated `known_hosts` file). This is the recommended production setting.
+2. **`~/.ssh/known_hosts` exists** — Used when `agof_config_repo_ssh_known_host` is not set (for example, keys prepared by an OpenShift Validated Patterns init container). Checkout uses that file with `StrictHostKeyChecking=yes`.
+3. **Neither source available** — Host key checking is disabled for the checkout only (`StrictHostKeyChecking=no`, `UserKnownHostsFile=/dev/null`). No vault variable is required for lab or first-time clones.
+
+Obtain a host key line for option 1 with `ssh-keyscan` (prefer `ed25519`):
+
+```bash
+ssh-keyscan -t ed25519 github.com
+```
+
+Set `agof_config_repo_ssh_accept_hostkey: true` only when you need to accept unknown keys despite having a `known_hosts` source configured (unusual; not recommended for production).
+
 | agof_config_repo_http_proxy | HTTP proxy URL | false | | Applied as `http_proxy`, `HTTP_PROXY`, and `GIT_HTTP_PROXY` when set |
 | agof_config_repo_https_proxy | HTTPS proxy URL | false | | Applied as `https_proxy`, `HTTPS_PROXY`, and `GIT_HTTPS_PROXY` when set |
 | agof_config_repo_no_proxy | Bypass list for proxies | false | | Applied as `NO_PROXY` / `no_proxy` |
@@ -266,7 +283,11 @@ agof_config_repo_https_username: oauth2
 agof_cac_repo: "git@gitlab.com:my-group/my-pattern-config.git"
 agof_cac_repo_version: main
 agof_config_repo_ssh_private_key_file: "~/.ssh/gitlab_agof_config"
-agof_config_repo_ssh_accept_hostkey: true
+# Host key checking is disabled automatically when no known_hosts are configured.
+# For production, pin the server key:
+# agof_config_repo_ssh_known_host:
+#   name: gitlab.com
+#   key: "gitlab.com ssh-ed25519 AAAA..."
 ```
 
 #### Forgejo / Gitea (HTTPS + access token)

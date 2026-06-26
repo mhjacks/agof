@@ -171,7 +171,7 @@
             else (
               ['-o UserKnownHostsFile=' ~ agof_config_repo_home_known_hosts_path, '-o StrictHostKeyChecking=yes']
               if (agof_config_repo_home_known_hosts.stat is defined and agof_config_repo_home_known_hosts.stat.exists)
-              else []
+              else ['-o StrictHostKeyChecking=no', '-o UserKnownHostsFile=/dev/null']
             )
           )
           + (
@@ -181,11 +181,7 @@
           )
         ) | join(' ')
       }}
-  when:
-    - agof_config_repo is match('^(git@|ssh://)')
-    - agof_config_repo_ssh_known_host is defined
-      or (agof_config_repo_home_known_hosts.stat is defined and agof_config_repo_home_known_hosts.stat.exists)
-      or (agof_config_repo_ssh_extra_opts | default('') | length > 0)
+  when: agof_config_repo is match('^(git@|ssh://)')
 
 - name: Compose git checkout environment
   ansible.builtin.set_fact:
@@ -236,7 +232,17 @@
         update: true
         recursive: true
         key_file: "{{ agof_config_repo_ssh_key_file_effective | default(omit) }}"
-        accept_hostkey: "{{ agof_config_repo_ssh_accept_hostkey | bool }}"
+        accept_hostkey: >-
+          {{
+            (agof_config_repo_ssh_accept_hostkey | default(false) | bool)
+            or (
+              agof_config_repo_ssh_known_host is not defined
+              and not (
+                agof_config_repo_home_known_hosts.stat is defined
+                and agof_config_repo_home_known_hosts.stat.exists
+              )
+            )
+          }}
         ssh_opts: "{{ agof_config_repo_ssh_opts_effective | default(omit) }}"
       environment: "{{ agof_config_repo_git_checkout_environment | default({}) }}"
       register: git_checkout

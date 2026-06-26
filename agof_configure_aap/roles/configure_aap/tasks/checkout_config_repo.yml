@@ -213,13 +213,6 @@
           )
       }}
 
-- name: Ensure config repo checkout parent directory exists
-  ansible.builtin.file:
-    path: "{{ agof_controller_config_dir | dirname }}"
-    state: directory
-    mode: "0755"
-  when: (agof_controller_config_dir | dirname) != agof_controller_config_dir
-
 - name: Check whether config repo destination is already a git checkout
   ansible.builtin.stat:
     path: "{{ agof_controller_config_dir }}/.git"

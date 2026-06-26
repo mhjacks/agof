@@ -43,6 +43,7 @@ activation_key_vault: "The name of an Activation Key used to register RHEL insta
 # Private repo over HTTPS (see README §4.1.1 for GitHub, GitLab, and Forgejo/Gitea examples)
 #agof_config_repo_https_token_vault: 'your-personal-access-token'
 #agof_config_repo_https_username: oauth2
+#agof_config_repo_https_ssl_verify: false
 
 # Private repo over SSH (key content or path to existing key file)
 #agof_config_repo_ssh_private_key_vault: |

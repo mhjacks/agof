@@ -41,6 +41,7 @@ agof_config_repo_ssh_identity_candidates:
 
 # HTTPS authentication (non-OpenShift installs)
 agof_config_repo_https_username: ""
+agof_config_repo_https_ssl_verify: true
 agof_config_repo_ssh_accept_hostkey: false
 agof_config_repo_ssh_extra_opts: ""
 

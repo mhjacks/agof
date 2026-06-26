@@ -26,6 +26,7 @@
         agof_cac_repo_version: "{{ helm_cm_values['agof']['cac_revision'] | default(helm_cm_values['agof']['iac_revision'], true) }}"
         agof_iac_repo: "{{ helm_cm_values['agof']['cac_repo'] | default(helm_cm_values['agof']['iac_repo'], true) }}"
         agof_iac_repo_version: "{{ helm_cm_values['agof']['cac_revision'] | default(helm_cm_values['agof']['iac_revision'], true) }}"
+        agof_config_repo_https_ssl_verify: "{{ helm_cm_values['agof']['gitHttpsSslVerify'] | default(true) | bool }}"
         helm_values: "{{ helm_cm_values }}"
 
     - name: Determine whether to do Hub Vault Config magic

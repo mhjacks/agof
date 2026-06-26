@@ -207,6 +207,7 @@ When running AGOF outside OpenShift Validated Patterns (`make install`, `make ap
 | agof_config_repo_https_token_vault | HTTPS token (PAT, deploy token, etc.) | false | | Preferred HTTPS secret; stored in vault |
 | agof_config_repo_https_password_vault | HTTPS password | false | | Alternative to token for basic auth |
 | agof_config_repo_https_username | HTTPS username | false | auto | Auto: `x-access-token` (GitHub), `oauth2` (GitLab), `git` (others) when omitted |
+| agof_config_repo_https_ssl_verify | Verify Git server TLS certificate | false | `true` | Set to `false` to disable TLS verification for HTTPS checkouts (lab use only; prefer installing the server CA on the provisioner) |
 | agof_config_repo_ssh_private_key_vault | SSH private key PEM/OpenSSH content | false | | Written to `~/.agof/config-repo/id_ed25519` (mode `0600`) for the checkout |
 | agof_config_repo_ssh_private_key_file | Path to an existing SSH private key | false | | Use instead of `*_vault` when the key is already on disk; `~/.ssh/id_ed25519` and `~/.ssh/id_rsa` are also detected automatically |
 | agof_config_repo_ssh_known_host | Pin Git server host key | false | | Dict with `name` and `key` (see examples); written to `~/.agof/config-repo/known_hosts` for checkout |
@@ -322,6 +323,19 @@ agof_config_repo_http_proxy: "http://proxy.example.com:8080"
 agof_config_repo_https_proxy: "http://proxy.example.com:8080"
 agof_config_repo_no_proxy: "localhost,127.0.0.1,.example.com"
 ```
+
+#### HTTPS TLS verification
+
+By default, AGOF validates the Git server's TLS certificate against the provisioner's system CA store. When the server uses a private CA that is not installed locally, checkout fails unless you trust that CA (recommended) or disable verification for lab use:
+
+```yaml
+agof_cac_repo: "https://git.example.com/org/pattern-config.git"
+agof_config_repo_https_ssl_verify: false
+```
+
+Disabling verification applies only to the config-repo `git` checkout (via `http.sslVerify=false` in the checkout environment), not to other HTTPS calls such as AAP API requests.
+
+On OpenShift Validated Patterns, set the same behavior in pattern Helm values as `agof.gitHttpsSslVerify: false` (chart v0.2.4+). That disables TLS verification for both the init-container AGOF clone and the config-as-code checkout.
 
 Proxy variables are exported to the `git` process only during checkout. OpenShift Validated Patterns installs source repository coordinates from Helm values. AGOF embeds HTTPS credentials only when `agof_config_repo_https_*` vault variables are set; otherwise chart init credential files are removed before the config-repo checkout. SSH config repos still use keys under `~/.ssh/` when configured.
 
@@ -489,8 +503,9 @@ Because the AGOF runner needs predictability for the existence of the manifest f
 - `aap_hostname`: The endpoint of the AAP instance, as discovered by looking for its route in the ansible-automation-platform namespace
 - `agof_cac_repo` / `agof_iac_repo`: Set from Helm values (`cac_repo` preferred over legacy `iac_repo`), overriding what may be in your local `agof_vault.yml` file.
 - `agof_cac_repo_version` / `agof_iac_repo_version`: Set from Helm values (`cac_revision` preferred over legacy `iac_revision`), as above.
+- `agof_config_repo_https_ssl_verify`: Set from Helm value `agof.gitHttpsSslVerify` (default `true`). When `false`, TLS verification is disabled for the config-as-code HTTPS checkout.
 
-Use `aap-config` chart **v0.3.0** or later with a compatible AGOF revision when adopting `cac_*` Helm values or SSH config repo URLs with `gitAuthSecret`.
+Use `aap-config` chart **v0.3.0** or later with a compatible AGOF revision when adopting `cac_*` Helm values or SSH config repo URLs with `gitAuthSecret`. Use chart **v0.2.4** or later with a compatible AGOF revision for `agof.gitHttpsSslVerify`.
 - `controller_license_src_file`: Set by creating a temporary file from the manifest file secret
 - `secrets`: Special data structure that contains other elements discovered from OpenShift.
 - `helm_values`: All of the helm values available to the application.

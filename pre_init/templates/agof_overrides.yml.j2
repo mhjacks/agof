@@ -23,6 +23,9 @@ agof_config_repo_https_password_vault: "{{ agof_config_repo_https_password_vault
 {% if agof_config_repo_https_username is defined and agof_config_repo_https_username | length > 0 %}
 agof_config_repo_https_username: "{{ agof_config_repo_https_username }}"
 {% endif %}
+{% if agof_config_repo_https_ssl_verify is defined %}
+agof_config_repo_https_ssl_verify: {{ agof_config_repo_https_ssl_verify | string | lower }}
+{% endif %}
 
 automation_hub_token_vault: "{{ automation_hub_token_vault }}"
 

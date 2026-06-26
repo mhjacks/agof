@@ -183,6 +183,28 @@
       }}
   when: agof_config_repo is match('^(git@|ssh://)')
 
+- name: Build git config overrides for HTTPS checkout
+  ansible.builtin.set_fact:
+    agof_config_repo_git_config_environment: >-
+      {%- set entries = (
+          (
+            [['credential.helper', ''], ['core.askPass', '']]
+            if not (agof_config_repo_https_auth_explicit | default(false) | bool)
+            else []
+          )
+          + (
+            [['http.sslVerify', 'false']]
+            if not (agof_config_repo_https_ssl_verify | default(true) | bool)
+            else []
+          )
+        ) -%}
+      {%- set env = {'GIT_CONFIG_COUNT': entries | length | string} -%}
+      {%- for item in entries -%}
+      {%- set _ = env.update({'GIT_CONFIG_KEY_' ~ loop.index0: item[0], 'GIT_CONFIG_VALUE_' ~ loop.index0: item[1]}) -%}
+      {%- endfor -%}
+      {{ env if entries | length > 0 else {} }}
+  when: agof_config_repo is match('^https?://')
+
 - name: Compose git checkout environment
   ansible.builtin.set_fact:
     agof_config_repo_git_checkout_environment: >-
@@ -193,20 +215,7 @@
             'GIT_ASKPASS': '',
             'HOME': lookup('env', 'HOME')
           })
-        | combine(
-            {
-              'GIT_CONFIG_COUNT': '2',
-              'GIT_CONFIG_KEY_0': 'credential.helper',
-              'GIT_CONFIG_VALUE_0': '',
-              'GIT_CONFIG_KEY_1': 'core.askPass',
-              'GIT_CONFIG_VALUE_1': ''
-            }
-            if (
-              agof_config_repo is match('^https?://')
-              and not (agof_config_repo_https_auth_explicit | default(false) | bool)
-            )
-            else {}
-          )
+        | combine(agof_config_repo_git_config_environment | default({}))
       }}
 
 - name: Check whether config repo destination is already a git checkout
@@ -272,6 +281,9 @@
           {% elif git_err is search('(?i)username|authentication|403|401') and not git_err is search('(?i)not found') %}
           HTTPS authentication failed. Set agof_config_repo_https_token_vault in ~/agof_vault.yml
           or configure agof.gitAuthSecret in the aap-config chart for private repositories.
+          {% elif git_err is search('(?i)ssl certificate|certificate problem|unable to get local issuer|self signed certificate') %}
+          HTTPS TLS verification failed. Install the Git server's CA on the provisioner, or set
+          agof_config_repo_https_ssl_verify: false in ~/agof_vault.yml for lab use only.
           {% else %}
           {{ git_err if git_err | length > 0 else ansible_failed_result.msg | default('unknown git error') }}
           {% endif %}

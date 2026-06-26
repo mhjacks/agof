@@ -206,10 +206,10 @@ When running AGOF outside OpenShift Validated Patterns (`make install`, `make ap
 | agof_cac_repo_version / agof_iac_repo_version | Branch, tag, or commit | false | `main` | Passed to `git` as `version` |
 | agof_config_repo_https_token_vault | HTTPS token (PAT, deploy token, etc.) | false | | Preferred HTTPS secret; stored in vault |
 | agof_config_repo_https_password_vault | HTTPS password | false | | Alternative to token for basic auth |
-| agof_config_repo_https_username | HTTPS username | false | auto | Auto: `x-access-token` (GitHub), `oauth2` (GitLab), `git` (others) when omitted |
+| agof_config_repo_https_username | HTTPS username | false | auto | Auto: `git` (GitHub), `oauth2` (GitLab), `git` (others) when omitted |
 | agof_config_repo_https_ssl_verify | Verify Git server TLS certificate | false | `true` | Set to `false` to disable TLS verification for HTTPS checkouts (lab use only; prefer installing the server CA on the provisioner) |
 | agof_config_repo_ssh_private_key_vault | SSH private key PEM/OpenSSH content | false | | Written to `~/.agof/config-repo/id_ed25519` (mode `0600`) for the checkout |
-| agof_config_repo_ssh_private_key_file | Path to an existing SSH private key | false | | Use instead of `*_vault` when the key is already on disk; `~/.ssh/id_ed25519` and `~/.ssh/id_rsa` are also detected automatically |
+| agof_config_repo_ssh_private_key_file | Path to an existing SSH private key | false | | Use instead of `*_vault` when the key is already on disk; quote paths with `~` (for example `"~/.ssh/id_ed25519"`). `~/.ssh/id_ed25519` and `~/.ssh/id_rsa` are also detected automatically when this is omitted |
 | agof_config_repo_ssh_known_host | Pin Git server host key | false | | Dict with `name` and `key` (see examples); written to `~/.agof/config-repo/known_hosts` for checkout |
 | agof_config_repo_ssh_accept_hostkey | Force acceptance of unknown SSH host keys | false | `false` | Optional override; when neither `agof_config_repo_ssh_known_host` nor `~/.ssh/known_hosts` is available, host key checking is already disabled for checkout |
 | agof_config_repo_ssh_extra_opts | Extra `ssh` options | false | | Example: `-p 2222` for non-standard SSH ports; appended to the options AGOF selects for host key verification |
@@ -241,9 +241,11 @@ Set `agof_config_repo_ssh_accept_hostkey: true` only when you need to accept unk
 agof_cac_repo: "https://github.com/my-org/my-pattern-config.git"
 agof_cac_repo_version: main
 agof_config_repo_https_token_vault: "ghp_xxxxxxxxxxxxxxxxxxxx"
-# username defaults to x-access-token; override if needed:
-# agof_config_repo_https_username: x-access-token
+# username defaults to git (GitHub HTTPS); override only if your host requires something else
+# agof_config_repo_https_username: git
 ```
+
+Fine-grained PATs (`github_pat_...`) and classic PATs (`ghp_...`) both use `git` as the HTTPS username with the token as the password.
 
 #### GitHub (SSH deploy key)
 

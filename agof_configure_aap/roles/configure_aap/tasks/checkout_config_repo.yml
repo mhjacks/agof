@@ -89,7 +89,7 @@
           {%- if agof_config_repo_https_username | default('') | length > 0 -%}
           {{ agof_config_repo_https_username }}
           {%- elif 'github.com' in agof_config_repo -%}
-          x-access-token
+          git
           {%- elif 'gitlab' in agof_config_repo -%}
           oauth2
           {%- else -%}
@@ -135,11 +135,35 @@
     - agof_config_repo_ssh_private_key_vault | length > 0
   no_log: true
 
+- name: Stat explicit SSH private key file for config repo checkout
+  ansible.builtin.stat:
+    path: "{{ agof_config_repo_ssh_private_key_file | expanduser }}"
+  register: agof_config_repo_ssh_key_file_explicit
+  when:
+    - agof_config_repo is match('^(git@|ssh://)')
+    - agof_config_repo_ssh_private_key_file | default('') | length > 0
+
+- name: Assert explicit SSH private key file exists
+  ansible.builtin.assert:
+    that:
+      - agof_config_repo_ssh_key_file_explicit.stat is defined
+      - agof_config_repo_ssh_key_file_explicit.stat.exists
+      - agof_config_repo_ssh_key_file_explicit.stat.isreg
+    fail_msg: >-
+      agof_config_repo_ssh_private_key_file is set to {{ agof_config_repo_ssh_private_key_file | quote }}
+      but no regular file exists at {{ agof_config_repo_ssh_private_key_file | expanduser }}.
+      Use an absolute path or quote the vault value (for example "~/.ssh/id_ed25519").
+      On OpenShift Validated Patterns with agof.gitAuthSecret, omit this variable so AGOF
+      auto-detects the key installed by the init container (usually ~/.ssh/id_rsa).
+  when:
+    - agof_config_repo is match('^(git@|ssh://)')
+    - agof_config_repo_ssh_private_key_file | default('') | length > 0
+
 - name: Resolve SSH private key path for config repo checkout
   ansible.builtin.set_fact:
     agof_config_repo_ssh_key_file_effective: >-
       {{
-        agof_config_repo_ssh_private_key_file
+        agof_config_repo_ssh_private_key_file | expanduser
         if (agof_config_repo_ssh_private_key_file | default('') | length > 0)
         else (
           agof_config_repo_credentials_dir ~ '/id_ed25519'
@@ -278,9 +302,20 @@
           {% if git_err is search('(?i)repository not found|not found') %}
           The remote repository was not found. Verify agof_cac_repo / agof_iac_repo is correct
           (for the minimal example use https://github.com/validatedpatterns-demos/agof_minimal_config.git).
+          {% elif git_err is search('(?i)permission denied|publickey|could not read from remote') %}
+          SSH authentication failed for {{ agof_config_repo | default('config repo') }}.
+          Ensure the private key is authorized for this repository (deploy key or account key),
+          and that agof_config_repo_ssh_private_key_file points at an existing key
+          ({{ agof_config_repo_ssh_key_file_effective | default('not resolved') }}).
+          {% elif git_err is search('(?i)host key verification failed|known_hosts') %}
+          SSH host key verification failed. Set agof_config_repo_ssh_known_host, ensure
+          {{ agof_config_repo_home_known_hosts_path }} contains the Git host, or allow
+          agof_config_repo_ssh_accept_hostkey for lab use.
           {% elif git_err is search('(?i)username|authentication|403|401') and not git_err is search('(?i)not found') %}
           HTTPS authentication failed. Set agof_config_repo_https_token_vault in ~/agof_vault.yml
           or configure agof.gitAuthSecret in the aap-config chart for private repositories.
+          For GitHub fine-grained PATs (github_pat_...), ensure the token has repository contents read access
+          and use username git (the default for github.com).
           {% elif git_err is search('(?i)ssl certificate|certificate problem|unable to get local issuer|self signed certificate') %}
           HTTPS TLS verification failed. Install the Git server's CA on the provisioner, or set
           agof_config_repo_https_ssl_verify: false in ~/agof_vault.yml for lab use only.

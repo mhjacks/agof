@@ -6,6 +6,5 @@ collections:
   - name: ansible.controller
     version: '>=4.6.0,<4.7'
   - name: ansible.hub
-    version: '>=1.0.0,<1.0.4'
+    version: '>=1.0.0'
   - name: ansible.eda
-    version: '>=2.5.0,<2.6'

@@ -8,4 +8,3 @@ collections:
   - name: ansible.hub
     version: '>=1.0.4,<1.0.6'
   - name: ansible.eda
-    version: '>=2.5.0'
